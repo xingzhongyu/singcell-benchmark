@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+.venv
+venv/
+env/
+*.egg-info/
+dist/
+build/
+data/
+figures/ # Scanpy might create this temporarily
+*.h5ad   # Avoid committing example data accidentally
+sample_data
