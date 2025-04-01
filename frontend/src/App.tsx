@@ -1,252 +1,460 @@
-// frontend/src/App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
-import FileUpload from './components/FileUpload'; // Assuming you have this
-import ResultDisplay from './components/ResultDisplay'; // Assuming you have this
-import TaskProgress from './components/TaskProgress'; // New component suggestion
-import ParameterTabs from './components/ParameterTabs'; // New component suggestion
-import { uploadFile, startAnalysis, getTaskStatus } from './services/api';
-import { AnalysisParameters, TaskStatus, AnalysisResultsSummary } from './types';
 
-const defaultParams: AnalysisParameters = {
-    mito_prefix: 'MT-',
-    min_genes_after_qc: 200,
-    min_cells_after_qc: 3,
-    select_hvgs: true,
-    hvg_min_mean: 0.0125,
-    hvg_max_mean: 3,
-    hvg_min_disp: 0.5,
-    hvg_n_top_genes: null, // Default to using mean/dispersion
-    normalize_target_sum: 10000,
-    pca_n_comps: 50,
-    neighbors_n_pcs: 30,
-    neighbors_n_neighbors: 15,
-    umap_min_dist: 0.5,
-    umap_spread: 1.0,
-    clustering_method: 'leiden',
-    leiden_resolution: 0.5,
-    louvain_resolution: 0.5,
-    marker_gene_method: 'wilcoxon',
-    marker_gene_n_genes: 25,
-};
+// Child Components (Assume they exist in ./components/)
+import MultiFileUpload from './components/MultiFileUpload';
+import IntegrationConfig from './components/IntegrationConfig';
+import DatasetSelector from './components/DatasetSelector';
+import AnalysisRunner from './components/AnalysisRunner';
+import ResultsViewer from './components/ResultsViewer';
+import TaskProgress from './components/TaskProgress'; // General progress display
+
+// API Service & Types
+import {
+    uploadFile, startAnalysis, startIntegration, startTrajectory, startCommunication,
+    getTaskStatus // Use a single function now for checking status
+} from './services/api';
+import {
+    AnalysisParameters, IntegrationParameters, TrajectoryParameters, CellCommunicationParameters,
+    AppDatasetState, TaskStatus, AnalysisResultsSummary, IntegrationResultsSummary,
+    TrajectoryResultsSummary, CellCommunicationResultsSummary, TaskStartResponse, UploadResponse, DatasetAnalysisState,
+} from './types'; // Make sure all necessary types are exported from types/index.ts
+
+// Default parameters (you might want to move these to a config file or constants)
+// const defaultBasicParams: AnalysisParameters = { /* ... your defaults ... */ };
+// Add default params for other analysis types if needed
+
+type AnalysisType = 'basic' | 'integration' | 'trajectory' | 'communication'; // Use a type alias
 
 function App() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dataId, setDataId] = useState<string | null>(null);
-  const [taskId, setTaskId] = useState<string | null>(null);
-  const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [analysisParams, setAnalysisParams] = useState<AnalysisParameters>(defaultParams);
-  const [analysisResults, setAnalysisResults] = useState<AnalysisResultsSummary | null>(null);
+    const [datasets, setDatasets] = useState<Record<string, AppDatasetState>>({});
+    const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
+    const [filesToUpload, setFilesToUpload] = useState<{ file: File, batchLabel: string, id: string }[]>([]);
+    const [uploadProgress, setUploadProgress] = useState<Record<string, { status: 'pending' | 'uploading' | 'success' | 'error', message?: string }>>({});
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [globalError, setGlobalError] = useState<string | null>(null);
 
-  const handleFileSelect = (file: File | null) => {
-    setSelectedFile(file);
-    // Reset previous results when a new file is selected
-    setDataId(null);
-    setTaskId(null);
-    setTaskStatus(null);
-    setError(null);
-    setAnalysisResults(null);
-  };
+    // Use useRef for intervals to avoid dependency loops
+    const intervalRef = useRef<Record<string, NodeJS.Timeout>>({});
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await uploadFile(selectedFile);
-      setDataId(response.data_id);
-      console.log('Upload successful:', response);
-    } catch (err: any) {
-      setError(err.message || 'Upload failed');
-      setDataId(null); // Ensure dataId is null on failure
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleStartAnalysis = async () => {
-    if (!dataId) return;
-    setIsLoading(true);
-    setError(null);
-    setTaskId(null); // Reset task ID before starting new one
-    setTaskStatus(null);
-    setAnalysisResults(null); // Clear previous results display
-    try {
-      // Pass the current analysisParams state
-      const response = await startAnalysis(dataId, analysisParams);
-      setTaskId(response.task_id);
-      setTaskStatus({ task_id: response.task_id, status: 'PENDING', result: null }); // Initial status
-      console.log('Analysis started:', response);
-    } catch (err: any) {
-      setError(err.message || 'Failed to start analysis');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const pollTaskStatus = useCallback(async () => {
-    // Ensure taskId exists before proceeding
-    if (!taskId || !dataId) {
-        console.log(`[${new Date().toLocaleTimeString()}] pollTaskStatus: Aborting, missing taskId or dataId.`);
-        // Consider clearing interval here if taskId becomes null unexpectedly
-        // This might require taskId to be a dependency of useEffect
-        return;
+    // --- Upload Logic ---
+    const handleFilesPrepared = (preparedFiles: { file: File, batchLabel: string, id: string }[]) => {
+        setFilesToUpload(preparedFiles);
+        setUploadProgress(preparedFiles.reduce((acc, pf) => {
+            acc[pf.id] = { status: 'pending' };
+            return acc;
+        }, {} as Record<string, { status: 'pending' | 'uploading' | 'success' | 'error', message?: string }>));
     };
 
-    console.log(`[${new Date().toLocaleTimeString()}] Polling status for task ${taskId}...`);
-    let statusResult: TaskStatus | null = null; // Define variable outside try
+    const handleConfirmUploads = async () => {
+        if (filesToUpload.length === 0 || isUploading) return;
+        setIsUploading(true);
+        setGlobalError(null);
 
-    try {
-        statusResult = await getTaskStatus(taskId); // Fetch status
-        console.log(`[${new Date().toLocaleTimeString()}] Fetched status for ${taskId}:`, statusResult);
-
-        // --- Task ID Check ---
-        // Ensure the status received is for the task we are currently tracking
-        if (statusResult.task_id !== taskId) {
-            console.warn(`[${new Date().toLocaleTimeString()}] Task ID mismatch. Current: ${taskId}, Fetched: ${statusResult.task_id}. Ignoring status.`);
-            return; // Stop processing this status update
-        }
-
-        // --- Update State (Always update state with the latest fetched status) ---
-        setTaskStatus(statusResult);
-
-        // --- !! ACT ON FINAL STATUS IMMEDIATELY !! ---
-        // Check the *fetched* statusResult directly, don't wait for the next render's taskStatus state
-        if (statusResult.status === 'SUCCESS') {
-            console.log(`[${new Date().toLocaleTimeString()}] SUCCESS state detected for ${taskId}. Processing result.`);
-            if (statusResult.result?.status === 'Complete') {
-                // Ensure the result structure is as expected
-                setAnalysisResults(statusResult.result.results_summary as AnalysisResultsSummary);
-                setError(null); // Clear any previous errors
-                console.log(`[${new Date().toLocaleTimeString()}] Analysis results set.`);
-            } else {
-                // Handle unexpected SUCCESS result format
-                console.error(`[${new Date().toLocaleTimeString()}] SUCCESS state for ${taskId} but unexpected result format:`, statusResult.result);
-                setError(`Analysis finished but result data is missing or malformed.`);
-                setAnalysisResults(null);
+        const uploadPromises = filesToUpload.map(async (pf) => {
+            try {
+                setUploadProgress(prev => ({ ...prev, [pf.id]: { status: 'uploading' } }));
+                const response = await uploadFile(pf.file);
+                setUploadProgress(prev => ({ ...prev, [pf.id]: { status: 'success', message: `ID: ${response.data_id}` } }));
+                // Add basic dataset state immediately after successful upload
+                setDatasets(prev => ({
+                    ...prev,
+                    [response.data_id]: {
+                        dataId: response.data_id,
+                        filename: response.filename,
+                        isIntegrated: false,
+                        uploadTime: new Date().toISOString(),
+                        // Initialize analysis states as undefined
+                        basicAnalysis: undefined,
+                        trajectoryAnalysis: undefined,
+                        communicationAnalysis: undefined,
+                    }
+                }));
+            } catch (error: any) {
+                console.error(`Upload failed for ${pf.file.name}:`, error);
+                setUploadProgress(prev => ({ ...prev, [pf.id]: { status: 'error', message: error.message || 'Upload failed' } }));
+                setGlobalError(prev => `${prev ? prev + '\n' : ''}Upload failed for ${pf.file.name}: ${error.message}`);
             }
-            // No need to return here, useEffect will stop the interval on next render
+        });
 
-        } else if (statusResult.status === 'FAILURE') {
-            console.log(`[${new Date().toLocaleTimeString()}] FAILURE state detected for ${taskId}. Setting error message.`);
-            const failureResult = statusResult.result as any; // Cast for easier access
-            const errorDetails = failureResult?.error ? ` (${failureResult.error})` : '';
-            // Limit traceback length if necessary
-            const tracebackInfo = failureResult?.traceback ? `\nTraceback available (see console)` : '';
-            if (failureResult?.traceback) console.error("Failure Traceback:", failureResult.traceback); // Log full traceback
+        await Promise.all(uploadPromises);
+        setIsUploading(false);
+        setFilesToUpload([]); // Clear prepared files after attempting upload
+    };
 
-            setError(`Analysis task failed${errorDetails}${tracebackInfo}`);
-            setAnalysisResults(null);
-            // No need to return here, useEffect will stop the interval on next render
+    // --- Polling Logic ---
+    const stopPolling = useCallback((intervalKey: string) => {
+        // console.log("Attempting to stop polling for:", intervalKey); // DEBUG
+        if (intervalRef.current[intervalKey]) {
+            // console.log("Clearing interval for:", intervalKey); // DEBUG
+            clearInterval(intervalRef.current[intervalKey]);
+            // Use functional update to safely modify the ref content
+            intervalRef.current = { ...intervalRef.current }; // Create a shallow copy
+            delete intervalRef.current[intervalKey]; // Delete the key
+        } else {
+             // console.log("No active interval found for:", intervalKey); // DEBUG
         }
-        // No 'else' needed - if it's PENDING/PROGRESS/STARTED, state is updated, and useEffect will continue the interval
+    }, []); // No dependencies needed as it only interacts with the ref
 
-    } catch (err: any) {
-        // Handle errors during the API call itself
-        console.error(`[${new Date().toLocaleTimeString()}] Error polling task status for ${taskId}:`, err);
-        setError(`Error checking task status: ${err.message}. Polling may stop.`);
-        // Optionally stop polling by clearing taskId, which useEffect depends on
-        // setTaskId(null);
-    }
+    const pollTask = useCallback(async (dataId: string, analysisTypeKey: keyof AppDatasetState, taskId: string) => {
+        const intervalKey = `${dataId}_${analysisTypeKey}_${taskId}`;
+        // console.log(`Polling task ${intervalKey}...`); // DEBUG
+        try {
+            const statusResult = await getTaskStatus(taskId);
 
-    // No explicit return needed unless aborting early (like task ID mismatch)
+            // Check if task ID is still relevant for this dataset/analysis type
+            let isStillRelevant = false;
+            setDatasets(prevDatasets => {
+                const currentDataset = prevDatasets[dataId];
+                if (currentDataset && (currentDataset[analysisTypeKey] as DatasetAnalysisState)?.taskId === taskId) {
+                    isStillRelevant = true;
+                    const updatedAnalysisState = {
+                        ...(currentDataset[analysisTypeKey] as DatasetAnalysisState),
+                        status: statusResult,
+                        resultsSummary: statusResult.status === 'SUCCESS' ? statusResult.result?.results_summary :( currentDataset[analysisTypeKey] as DatasetAnalysisState)?.resultsSummary,
+                        error: statusResult.status === 'FAILURE' ? (statusResult.result?.details || statusResult.result?.error || 'Task Failed') : null
+                    };
+                    return {
+                        ...prevDatasets,
+                        [dataId]: {
+                            ...currentDataset,
+                            [analysisTypeKey]: updatedAnalysisState,
+                        }
+                    };
+                }
+                // If task ID or dataset changed, return previous state to avoid update
+                return prevDatasets;
+            });
 
-    // Dependencies: taskId and dataId are crucial.
-    // setTaskStatus, setAnalysisResults, setError are stable state setters from useState.
-}, [taskId, dataId, setTaskStatus, setAnalysisResults, setError]); // Removed taskStatus dependency
-
-
-  // useEffect remains largely the same, it just controls the *timing* of the polling
-  useEffect(() => {
-      let intervalId: NodeJS.Timeout | null = null;
-      console.log(`[${new Date().toLocaleTimeString()}] useEffect triggered. Task ID: ${taskId}, Status: ${taskStatus?.status}`);
-
-      // Start polling ONLY if we have a task ID AND the status is NOT final
-      if (taskId && taskStatus?.status !== 'SUCCESS' && taskStatus?.status !== 'FAILURE') {
-          console.log(`[${new Date().toLocaleTimeString()}] useEffect: Setting up interval for ${taskId}. Current status: ${taskStatus?.status}`);
-
-          // Optional: Poll immediately once when starting interval?
-          // Be careful not to cause rapid polling if state updates quickly.
-          // pollTaskStatus();
-
-          intervalId = setInterval(pollTaskStatus, 5000); // Poll every 5 seconds
-      } else {
-          console.log(`[${new Date().toLocaleTimeString()}] useEffect: NOT setting up interval. Task ID: ${taskId}, Status: ${taskStatus?.status}`);
-      }
-
-      // Cleanup function: Clears interval when taskId changes, status becomes final, or component unmounts
-      return () => {
-          console.log(`[${new Date().toLocaleTimeString()}] useEffect CLEANUP running. Clearing interval ${intervalId} for task ${taskId}.`);
-          if (intervalId) {
-              clearInterval(intervalId);
-          }
-      };
-      // Dependencies: Listen to taskId and taskStatus.status to decide *whether* to poll.
-      // pollTaskStatus is included because it's used inside the effect.
-  }, [taskId, taskStatus?.status, pollTaskStatus]);
+             if (!isStillRelevant) {
+                 console.warn(`Task ${taskId} is no longer relevant for ${dataId} -> ${analysisTypeKey}. Stopping polling.`);
+                 stopPolling(intervalKey);
+                 return; // Stop further processing
+             }
 
 
-  // Handler to update parameters from child components
-  const handleParamsChange = (newParams: Partial<AnalysisParameters>) => {
-      setAnalysisParams(prevParams => ({ ...prevParams, ...newParams }));
-  };
+            // Stop polling if task reached a final state
+            if (statusResult.status === 'SUCCESS' || statusResult.status === 'FAILURE' || statusResult.status === 'REVOKED') {
+                console.log(`Task ${taskId} (${dataId} -> ${analysisTypeKey}) finished with status: ${statusResult.status}. Stopping polling.`);
+                stopPolling(intervalKey);
+            }
+        } catch (error: any) {
+            console.error(`Error polling task status for ${intervalKey}:`, error);
+            // Optionally update dataset state with polling error?
+             setDatasets(prev => {
+                 const current = prev[dataId];
+                 if (current && (current[analysisTypeKey] as DatasetAnalysisState )?.taskId === taskId) {
+                     return {
+                         ...prev,
+                         [dataId]: {
+                             ...current,
+                             [analysisTypeKey]: {
+                                 ...(current[analysisTypeKey] as any), // Keep existing state
+                                 error: `Polling Error: ${error.message}`,
+                             }
+                         }
+                     }
+                 }
+                 return prev;
+             })
+            stopPolling(intervalKey); // Stop polling on error
+        }
+    }, [stopPolling]); // Depends only on stopPolling (stable)
+
+    // --- Effect to Manage Polling Intervals ---
+    useEffect(() => {
+        // console.log("Polling effect running. Datasets:", datasets); // DEBUG
+        const analysisTypeKeys: (keyof Omit<AppDatasetState, 'dataId' | 'filename' | 'isIntegrated' | 'uploadTime' | 'sourceDataIds'>)[] = [
+            'basicAnalysis', 'integrationAnalysis', 'trajectoryAnalysis', 'communicationAnalysis'
+        ];
+
+        Object.entries(datasets).forEach(([dataId, datasetState]) => {
+            analysisTypeKeys.forEach(analysisTypeKey => {
+                const analysisState = datasetState[analysisTypeKey] as DatasetAnalysisState;
+
+                if (analysisState?.taskId && analysisState.status &&
+                    !['SUCCESS', 'FAILURE', 'REVOKED'].includes(analysisState.status.status))
+                {
+                    const intervalKey = `${dataId}_${analysisTypeKey}_${analysisState.taskId}`;
+                    if (!intervalRef.current[intervalKey]) {
+                        console.log(`Starting polling for ${intervalKey}`);
+                        // Poll immediately, then set interval
+                        pollTask(dataId, analysisTypeKey, analysisState.taskId);
+                        const intervalId = setInterval(() => {
+                            // Check inside interval if task is still relevant before polling
+                             let isStillRelevant = false;
+                             setDatasets(prev => { // Read latest state without causing loop
+                                 const currentDs = prev[dataId];
+                                 if (currentDs && (currentDs[analysisTypeKey] as DatasetAnalysisState)?.taskId === analysisState.taskId && !['SUCCESS', 'FAILURE', 'REVOKED'].includes((currentDs[analysisTypeKey] as DatasetAnalysisState)?.status?.status ?? '')) {
+                                     isStillRelevant = true;
+                                 }
+                                 return prev;
+                             });
+                             if (isStillRelevant) {
+                                pollTask(dataId, analysisTypeKey, analysisState.taskId!);
+                             } else {
+                                console.log(`Polling check: Task ${analysisState.taskId} no longer relevant or finished. Stopping interval ${intervalKey}.`);
+                                stopPolling(intervalKey); // Stop if status changed between checks
+                             }
+
+                        }, 7000); // Poll every 7 seconds
+                        // Use functional update to safely modify ref without loop
+                         intervalRef.current = { ...intervalRef.current, [intervalKey]: intervalId };
+                    }
+                }
+                 // Cleanup check: Stop polling if task somehow finished but interval remains
+                 else if (analysisState?.taskId) {
+                    const intervalKey = `${dataId}_${analysisTypeKey}_${analysisState.taskId}`;
+                    if (intervalRef.current[intervalKey] && analysisState.status && ['SUCCESS', 'FAILURE', 'REVOKED'].includes(analysisState.status.status)) {
+                         console.warn(`Stopping orphaned polling interval ${intervalKey} due to final task status.`);
+                         stopPolling(intervalKey);
+                     }
+                 }
+            });
+        });
+
+        // Cleanup function to clear all intervals on component unmount or if datasets change drastically
+        return () => {
+            console.log("Cleaning up all polling intervals...");
+            Object.values(intervalRef.current).forEach(clearInterval);
+            intervalRef.current = {}; // Reset ref
+        };
+    // Depend only on datasets structure (keys and task IDs/status) and the stable pollTask function
+    // Using JSON.stringify is a common way to track deep changes, but can be inefficient.
+    // A more targeted dependency array might be better if performance is critical.
+    // For now, this ensures the effect runs when tasks are added/removed/finish.
+    }, [datasets, pollTask, stopPolling]);
 
 
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Scanpy Web Analysis</h1>
-      </header>
+    // --- Selecting Dataset ---
+    const handleDatasetSelect = (id: string | null) => setSelectedDataId(id);
 
-      <main>
-        {/* --- Step 1: Upload --- */}
-        <section>
-          <h3>1. Upload Data</h3>
-          <FileUpload onFileSelect={handleFileSelect} currentFile={selectedFile} />
-          <button onClick={handleUpload} disabled={!selectedFile || isLoading}>
-            {isLoading && !dataId ? 'Uploading...' : 'Upload .h5ad File'}
-          </button>
-          {dataId && !taskId && <p style={{ color: 'green' }}>File uploaded successfully! Data ID: {dataId}</p>}
-        </section>
+    // --- Running Analyses on Selected Dataset ---
+    const handleRunAnalysis = async (
+        analysisType: 'basic' | 'trajectory' | 'communication', // Integration handled separately
+        params: any // AnalysisParameters | TrajectoryParameters | CellCommunicationParameters
+    ) => {
+        if (!selectedDataId) {
+            setGlobalError("No dataset selected to run analysis on.");
+            return;
+        }
+        setGlobalError(null); // Clear previous errors
 
-        {error && <p style={{ color: 'red', whiteSpace: 'pre-wrap' }}>Error: {error}</p>}
+        const analysisTypeKey = `${analysisType}Analysis` as keyof AppDatasetState; // e.g., 'basicAnalysis'
 
-        {/* --- Step 2: Configure & Run Analysis --- */}
-        {dataId && (
-          <section>
-            <hr />
-            <h3>2. Configure & Run Analysis</h3>
-             {/* Use Tabs or Accordion for better organization */}
-            <ParameterTabs params={analysisParams} onParamsChange={handleParamsChange} />
+        // Start loading state specifically for this analysis
+         setDatasets(prev => ({
+            ...prev,
+            [selectedDataId]: {
+                ...prev[selectedDataId],
+                [analysisTypeKey]: { // Reset previous state for this analysis type
+                    taskId: null,
+                    status: { task_id: '', status: 'PENDING', result: { status: 'Submitting task...'}}, // Initial 'PENDING' like status
+                    parameters: params, // Store params used
+                    resultsSummary: null,
+                    error: null,
+                 }
+            }
+         }))
 
-            <button onClick={handleStartAnalysis} disabled={!dataId || isLoading || (!!taskId && taskStatus?.status !== 'SUCCESS' && taskStatus?.status !== 'FAILURE')}>
-              {isLoading && !!taskId ? 'Processing...' : 'Start Analysis'}
-            </button>
-          </section>
-        )}
 
-        {/* --- Step 3: View Progress & Results --- */}
-        {taskId && dataId && (
-             <section>
-                 <hr />
-                 <h3>3. Analysis Progress & Results</h3>
-                 <TaskProgress status={taskStatus} />
-                 {/* Conditionally render ResultDisplay only when SUCCESS */}
-                 {taskStatus?.status === 'SUCCESS' && analysisResults && (
-                     <ResultDisplay
-                         dataId={dataId}
-                         resultsSummary={analysisResults} // Pass the detailed results summary
-                         clusterMethod={analysisParams.clustering_method} // Pass method used
-                     />
+        try {
+            let response: TaskStartResponse;
+            if (analysisType === 'basic') {
+                response = await startAnalysis(selectedDataId, params as AnalysisParameters);
+            } else if (analysisType === 'trajectory') {
+                // Ensure source_data_id is set correctly
+                const trajectoryParams = { ...(params as TrajectoryParameters), source_data_id: selectedDataId };
+                response = await startTrajectory(trajectoryParams);
+            } else if (analysisType === 'communication') {
+                // Ensure source_data_id is set correctly
+                const communicationParams = { ...(params as CellCommunicationParameters), source_data_id: selectedDataId };
+                response = await startCommunication(communicationParams);
+            } else {
+                throw new Error("Invalid analysis type");
+            }
+
+            // Update state with the actual task ID and PENDING status
+            setDatasets(prev => ({
+                ...prev,
+                [selectedDataId]: {
+                    ...prev[selectedDataId],
+                    [analysisTypeKey]: {
+                        ...(prev[selectedDataId][analysisTypeKey] as any), // Keep params
+                        taskId: response.task_id,
+                        status: { task_id: response.task_id, status: 'PENDING', result: null },
+                    }
+                }
+            }));
+             // Polling will be started by the useEffect hook reacting to the state change
+
+        } catch (error: any) {
+            console.error(`Failed to start ${analysisType} analysis:`, error);
+            setGlobalError(`Failed to start ${analysisType} analysis: ${error.message}`);
+             // Update state to reflect failure to start
+             setDatasets(prev => ({
+                ...prev,
+                [selectedDataId]: {
+                    ...prev[selectedDataId],
+                    [analysisTypeKey]: {
+                        ...(prev[selectedDataId][analysisTypeKey] as any), // Keep params
+                        taskId: null,
+                        status: null, // Clear status
+                        error: `Failed to start task: ${error.message}`
+                    }
+                }
+            }));
+        }
+    };
+
+
+    // --- Integration Logic ---
+    const handleStartIntegration = async (integrationParams: IntegrationParameters) => {
+        setGlobalError(null);
+        const outputDataId = integrationParams.output_data_id || `integrated_${Date.now()}`; // Generate temp ID
+
+         // Add placeholder for integrated dataset
+         setDatasets(prev => ({
+            ...prev,
+            [outputDataId]: {
+                dataId: outputDataId,
+                isIntegrated: true,
+                sourceDataIds: integrationParams.files.map(f => f.data_id),
+                uploadTime: new Date().toISOString(),
+                // Set up integrationAnalysis state
+                integrationAnalysis: {
+                    taskId: null,
+                    status: { task_id: '', status: 'PENDING', result: { status: 'Submitting task...'}},
+                    parameters: integrationParams,
+                    resultsSummary: null,
+                    error: null,
+                 }
+            }
+         }));
+
+        try {
+            const response = await startIntegration({ ...integrationParams, output_data_id: outputDataId }); // Send ID to backend
+
+            // Update placeholder with actual task ID
+            setDatasets(prev => {
+                const current = prev[outputDataId];
+                if(current?.integrationAnalysis) { // Check if still exists
+                    return {
+                        ...prev,
+                        [outputDataId]: {
+                            ...current,
+                            integrationAnalysis: {
+                                ...current.integrationAnalysis,
+                                taskId: response.task_id,
+                                status: { task_id: response.task_id, status: 'PENDING', result: null },
+                            }
+                        }
+                    }
+                }
+                return prev; // No change if dataset disappeared
+            });
+            // Polling will start via useEffect
+
+        } catch (error: any) {
+            console.error('Failed to start integration analysis:', error);
+            setGlobalError(`Failed to start integration analysis: ${error.message}`);
+             // Update placeholder state to show error
+             setDatasets(prev => {
+                 const current = prev[outputDataId];
+                 if (current?.integrationAnalysis) {
+                     return {
+                         ...prev,
+                         [outputDataId]: {
+                             ...current,
+                             integrationAnalysis: {
+                                 ...current.integrationAnalysis,
+                                 taskId: null,
+                                 status: null,
+                                 error: `Failed to start task: ${error.message}`
+                             }
+                         }
+                     };
+                 }
+                 return prev; // No change
+             });
+        }
+    };
+
+
+    const selectedDataset = selectedDataId ? datasets[selectedDataId] : null;
+    // Filter out datasets that are currently being integrated (have placeholder state but no task success yet)
+    const selectableDatasets = Object.values(datasets).filter(ds =>
+        !(ds.isIntegrated && (!ds.integrationAnalysis || ds.integrationAnalysis.status?.status !== 'SUCCESS'))
+    ).reduce((acc, ds) => {
+         acc[ds.dataId] = ds; // Convert back to record for selector
+         return acc;
+     }, {} as Record<string, AppDatasetState>);
+
+
+    return (
+        <div className="App">
+            <header className="App-header">
+                <h1>Scanpy Web Analysis App</h1>
+            </header>
+            <main>
+                {globalError && <p className="global-error">Error: {globalError}</p>}
+
+                {/* --- Section 1: Data Input & Integration --- */}
+                <section className="app-section">
+                    <h3>1. Upload & Integrate Data</h3>
+                    <MultiFileUpload
+                        onFilesPrepared={handleFilesPrepared}
+                        uploadProgress={uploadProgress}
+                        isUploading={isUploading}
+                    />
+                    <button onClick={handleConfirmUploads} disabled={filesToUpload.length === 0 || isUploading}>
+                        {isUploading ? 'Uploading...' : `Upload ${filesToUpload.length} File(s)`}
+                    </button>
+
+                    <IntegrationConfig
+                        availableDatasets={Object.values(datasets).filter(d => !d.isIntegrated)} // Pass original uploads
+                        onStartIntegration={handleStartIntegration}
+                        // Find if any integration task is running/pending for display
+                        activeIntegrationTask={Object.values(datasets).find(d => d.isIntegrated && d.integrationAnalysis && !['SUCCESS', 'FAILURE'].includes(d.integrationAnalysis.status?.status ?? ''))?.integrationAnalysis}
+                    />
+                </section>
+
+                {/* --- Section 2: Select Dataset & Run Analyses --- */}
+                 {/* Only show if there are selectable datasets */}
+                 {Object.keys(selectableDatasets).length > 0 && (
+                    <section className="app-section">
+                        <hr />
+                        <h3>2. Select Dataset & Analyze</h3>
+                        <DatasetSelector
+                            datasets={selectableDatasets}
+                            onSelect={handleDatasetSelect}
+                            selectedId={selectedDataId}
+                        />
+
+                        {selectedDataset && (
+                            <AnalysisRunner
+                                dataset={selectedDataset}
+                                onRunAnalysis={handleRunAnalysis}
+                            />
+                        )}
+                    </section>
                  )}
-             </section>
-        )}
 
-      </main>
-    </div>
-  );
+                {/* --- Section 3: View Results --- */}
+                {selectedDataset && (
+                    <section className="app-section">
+                        <hr />
+                        <h3>3. Results for Dataset: {selectedDataset.filename || selectedDataId} {selectedDataset.isIntegrated ? '(Integrated)' : ''}</h3>
+                        <ResultsViewer dataset={selectedDataset} />
+                    </section>
+                )}
+                 {/* Show message if no datasets are available */}
+                 {Object.keys(datasets).length === 0 && !isUploading && filesToUpload.length === 0 && (
+                     <p>Upload one or more .h5ad files to begin.</p>
+                 )}
+
+            </main>
+        </div>
+    );
 }
-
 export default App;

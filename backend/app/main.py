@@ -1,35 +1,41 @@
+# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import data, analysis # Import routers
+# Import existing and new routers
+from .routers import data, analysis
+from .routers import integration, trajectory, communication # NEW
 
 app = FastAPI(title="Scanpy Analysis API")
 
-# --- CORS Middleware ---
-# Adjust origins as needed for production
+# --- CORS Middleware --- (Keep existing)
 origins = [
-    "http://localhost:3001", # Default React dev server
+    "http://localhost:3001",
     "http://127.0.0.1:3001",
-    "http://211.87.232.159:3001"
-    # Add your frontend deployment URL here
+    "http://211.87.232.159:3001" # Your frontend origin
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # Allows all methods
-    allow_headers=["*"], # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # --- Include Routers ---
-app.include_router(data.router, prefix="/api/data", tags=["Data Upload & Results"])
-app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis Tasks"])
+app.include_router(data.router, prefix="/api/data", tags=["Data Upload & Base Results"])
+app.include_router(analysis.router, prefix="/api/analysis", tags=["Basic Analysis Tasks"])
+app.include_router(integration.router, prefix="/api/integration", tags=["Data Integration Tasks"]) # NEW
+app.include_router(trajectory.router, prefix="/api/trajectory", tags=["Trajectory Analysis Tasks"]) # NEW
+app.include_router(communication.router, prefix="/api/communication", tags=["Cell Communication Tasks"]) # NEW
 
-# --- Root Endpoint ---
+
+# --- Root Endpoint --- (Keep existing)
 @app.get("/", tags=["Root"])
 async def read_root():
     return {"message": "Welcome to the Scanpy Analysis API!"}
+
+# --- Startup Event (Optional) --- (Keep existing if using)
 
 # --- (Optional) Create data directories on startup ---
 # Handled in config.py now, but could be done here too.

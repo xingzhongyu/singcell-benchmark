@@ -14,3 +14,9 @@ RESULT_DIR.mkdir(parents=True, exist_ok=True)
 # Convert Path objects to strings for functions expecting strings
 UPLOAD_DIR_STR = str(UPLOAD_DIR)
 RESULT_DIR_STR = str(RESULT_DIR)
+
+CPDB_DATABASE_PATH = os.getenv(
+    "CPDB_DATABASE_PATH",
+    # Replace with the actual path to your downloaded/unzipped DB directory
+    BASE_DIR/"cellphonedb_data/v5.0.0/cellphonedb.zip"
+)
