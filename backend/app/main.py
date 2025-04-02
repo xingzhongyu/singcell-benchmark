@@ -1,10 +1,11 @@
 # backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 # Import existing and new routers
 from .routers import data, analysis
-from .routers import integration, trajectory, communication # NEW
+from .routers import integration, trajectory, communication,velocity # NEW
 
 app = FastAPI(title="Scanpy Analysis API")
 
@@ -28,12 +29,16 @@ app.include_router(analysis.router, prefix="/api/analysis", tags=["Basic Analysi
 app.include_router(integration.router, prefix="/api/integration", tags=["Data Integration Tasks"]) # NEW
 app.include_router(trajectory.router, prefix="/api/trajectory", tags=["Trajectory Analysis Tasks"]) # NEW
 app.include_router(communication.router, prefix="/api/communication", tags=["Cell Communication Tasks"]) # NEW
+app.include_router(velocity.router, prefix="/api/velocity", tags=["RNA Velocity Tasks"]) # NEW
 
 
 # --- Root Endpoint --- (Keep existing)
 @app.get("/", tags=["Root"])
 async def read_root():
     return {"message": "Welcome to the Scanpy Analysis API!"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # --- Startup Event (Optional) --- (Keep existing if using)
 

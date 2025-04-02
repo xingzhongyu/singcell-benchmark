@@ -197,6 +197,30 @@ export interface CellCommunicationResultsSummary {
   // Add paths to specific plots if generated
 }
 
+export interface RnaVelocityParameters {
+  source_data_id: string; // Should be set automatically from selected dataset
+  mode: 'stochastic' | 'deterministic' | 'dynamical';
+  fit_basal_transcription: boolean;
+  vgraph_n_neighbors?: number | null; // Use null for default
+  vgraph_approx?: boolean | null;
+  embedding_basis: string;
+  color_key?: string | null;
+  save_updated_adata: boolean;
+}
+
+export interface RnaVelocityResultsSummary {
+  source_data_id: string;
+  original_data_loaded?: boolean;
+  embedding_basis_found?: string | null;
+  neighbors_graph_found?: boolean;
+  color_key_found?: string | null;
+  velocity_calculated?: { mode: string };
+  velocity_graph_calculated?: boolean;
+  grid_plot_path?: string | null;
+  stream_plot_path?: string | null;
+  updated_adata_path?: string | null;
+}
+
 
 // Update TaskStatus result to potentially hold different summary types
 export interface TaskStatus {
@@ -204,7 +228,7 @@ task_id: string;
 // Add task type? Might be useful for frontend logic
 // task_type: 'basic' | 'integration' | 'trajectory' | 'communication';
 status: 'PENDING' | 'STARTED' | 'PROGRESS' | 'SUCCESS' | 'FAILURE' | 'RETRY' | 'REVOKED';
-result?: TaskProgressMeta | { status: 'Complete'; results_summary: AnalysisResultsSummary | IntegrationResultsSummary | TrajectoryResultsSummary | CellCommunicationResultsSummary } | TaskFailureResult | null | any;
+result?: TaskProgressMeta | { status: 'Complete'; results_summary: AnalysisResultsSummary | IntegrationResultsSummary | TrajectoryResultsSummary | CellCommunicationResultsSummary| RnaVelocityResultsSummary } | TaskFailureResult | null | any;
 }
 
 // Type to manage state for different analysis types run on a dataset
@@ -226,7 +250,9 @@ export interface AppDatasetState {
   trajectoryAnalysis?: DatasetAnalysisState;
   communicationAnalysis?: DatasetAnalysisState;
   integrationAnalysis?:DatasetAnalysisState;
+  velocityAnalysis?: DatasetAnalysisState; 
   // Store source IDs if integrated
   sourceDataIds?: string[];
   batchLabel?:string;
 }
+

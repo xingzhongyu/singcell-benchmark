@@ -8,7 +8,6 @@ env/
 dist/
 build/
 data/
-figures/ # Scanpy might create this temporarily
 *.h5ad   # Avoid committing example data accidentally
 sample_data
 cellphonedb_data

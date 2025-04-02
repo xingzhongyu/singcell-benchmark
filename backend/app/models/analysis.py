@@ -108,3 +108,25 @@ class CellCommunicationParams(BaseModel):
     subsampling: bool = Field(False, description="Enable CellPhoneDB subsampling")
     subsampling_num_pc: int = Field(100, description="Subsampling: number of PCs")
     subsampling_log: bool = Field(False, description="Subsampling: log transform") # CellphoneDB default is False
+    
+# --- RNA Velocity Models ---
+class RnaVelocityParams(BaseModel):
+    source_data_id: str = Field(..., description="Data ID of the AnnData object containing spliced/unspliced layers")
+    # Preprocessing options within velocity task (optional, usually done beforehand)
+    # min_shared_counts: int = Field(20, description="scVelo: Min shared spliced/unspliced counts for velocity gene filtering")
+    # n_top_genes: Optional[int] = Field(2000, description="scVelo: Select top N velocity genes (None to use all)")
+
+    # Core velocity calculation
+    mode: Literal['stochastic', 'deterministic', 'dynamical'] = Field('stochastic', description="scVelo: Mode for velocity calculation")
+    fit_basal_transcription: bool = Field(True, description="scVelo (Dynamical): Fit basal transcription") # Only for dynamical mode
+
+    # Velocity graph
+    vgraph_n_neighbors: Optional[int] = Field(None, description="scVelo: Number of neighbors for velocity graph (None uses default from existing neighbors graph)")
+    vgraph_approx: Optional[bool] = Field(None, description="scVelo: Use approximate nearest neighbors for velocity graph")
+
+    # Embedding options
+    embedding_basis: str = Field("umap", description="Basis for embedding velocity (e.g., 'umap', 'tsne', 'pca') - must exist in adata.obsm")
+    color_key: Optional[str] = Field("clusters", description="adata.obs key for coloring velocity plot (e.g., 'clusters', 'batch')")
+
+    # Output options
+    save_updated_adata: bool = Field(False, description="Save the AnnData object with velocity results added")

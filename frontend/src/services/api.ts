@@ -4,7 +4,8 @@ import {
     UploadResponse, TaskStartResponse, TaskStatus, AnalysisParameters,
     MarkerGene, GeneExpressionResponse,
     IntegrationParameters, TrajectoryParameters, CellCommunicationParameters,
-    IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, AppDatasetState // Add AppDatasetState if used for complex state
+    IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, AppDatasetState, // Add AppDatasetState if used for complex state
+    RnaVelocityParameters
 } from '../types';
 
 // Adjust if your backend runs on a different port or host
@@ -223,4 +224,42 @@ export const getCellPhoneDbPlotUrl = (sourceDataId: string, plotName: string): s
 export const getCellPhoneDbDownloadUrl = (sourceDataId: string): string => {
    if (!sourceDataId) return "";
    return `${API_BASE_URL}/communication/results/${sourceDataId}/download/cellphonedb`;
+};
+
+
+// --- RNA Velocity Task ---
+export const startVelocity = async (params: RnaVelocityParameters): Promise<TaskStartResponse> => {
+    try {
+        // source_data_id should be set correctly before calling this
+        const response = await apiClient.post('/velocity/start', params);
+        return response.data;
+    } catch (error) {
+        console.error("Start RNA velocity error:", error);
+        if (axios.isAxiosError(error) && error.response) {
+            // Handle 404 specifically if original file missing?
+            if (error.response.status === 404 && error.response.data.detail?.includes("Original data file")) {
+                 throw new Error("Original data file missing required spliced/unspliced layers. Cannot run RNA Velocity.");
+            }
+            throw new Error(error.response.data.detail || 'Failed to start RNA velocity analysis');
+        }
+        throw new Error('Failed to start RNA velocity analysis due to an unknown error');
+     }
+};
+
+export const getVelocityTaskStatus = getTaskStatus; // Reuse main status checker
+
+// --- URLs for Velocity Results ---
+export const getVelocityPlotUrl = (sourceDataId: string, basis: string, type: 'grid' | 'stream'): string => {
+    if (!sourceDataId || !basis) return "";
+    const streamParam = type === 'stream';
+    // The backend endpoint currently assumes 'umap' basis in the filename.
+    // TODO: Make backend endpoint accept basis or use a more robust naming convention.
+    // For now, we assume basis matches what was plotted (e.g., 'umap').
+    console.warn("Velocity plot URL generation currently assumes basis matches plot filename on backend.");
+    return `${API_BASE_URL}/velocity/results/${sourceDataId}/plot/velocity_embedding/${streamParam}?t=${new Date().getTime()}`;
+};
+
+export const getVelocityDataUrl = (sourceDataId: string): string => {
+    if (!sourceDataId) return "";
+    return `${API_BASE_URL}/velocity/results/${sourceDataId}/velocity_data`;
 };

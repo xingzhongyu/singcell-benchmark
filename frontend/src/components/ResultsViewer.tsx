@@ -1,44 +1,52 @@
 import React from 'react';
-import { AppDatasetState, AnalysisResultsSummary, IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary } from '../types';
+import { AppDatasetState, AnalysisResultsSummary, IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, RnaVelocityResultsSummary } from '../types'; // Ensure RnaVelocityResultsSummary is imported
 import {
-    getUmapPlotUrl, getQCViolinPlotUrl, getProcessedDataUrl, getMarkerGenesUrl,
-    getIntegratedUmapPlotUrl, getIntegratedDataUrl,
-    getDiffmapPlotUrl, getPagaPlotUrl, getDptUmapPlotUrl,
-    getCellPhoneDbPlotUrl, getCellPhoneDbDownloadUrl
+    // ... existing imports ...
+    getVelocityPlotUrl, getVelocityDataUrl, // Add velocity URL getters
+    getIntegratedUmapPlotUrl,
+    getIntegratedDataUrl,
+    getQCViolinPlotUrl,
+    getUmapPlotUrl,
+    getProcessedDataUrl,
+    getMarkerGenesUrl,
+    getDiffmapPlotUrl,
+    getPagaPlotUrl,
+    getDptUmapPlotUrl,
+    getCellPhoneDbDownloadUrl
  } from '../services/api';
- import Plot from 'react-plotly.js'; // Import if needed for interactive plots
- // import MarkerGeneTable from './MarkerGeneTable'; // Example sub-component
- // import GeneExpressionPlot from './GeneExpressionPlot'; // Example sub-component
- // import './styles.css';
+// import Plot from 'react-plotly.js'; // If needed later
+import './styles.css';
 
 interface ResultsViewerProps {
     dataset: AppDatasetState;
 }
 
-// Helper to check if analysis was successful
-const wasSuccessful = (status: AppDatasetState['basicAnalysis'] | AppDatasetState['integrationAnalysis'] | AppDatasetState['trajectoryAnalysis'] | AppDatasetState['communicationAnalysis']) => {
-    return status?.status?.status === 'SUCCESS';
+const wasSuccessful = (status: AppDatasetState[keyof AppDatasetState]) => {
+    // Check if status exists and is SUCCESS
+    return status && typeof status === 'object' && 'status' in status && status.status?.status === 'SUCCESS';
 };
 
-const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
 
+const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
+    // Use type assertion for potentially undefined results
     const basicResults = dataset.basicAnalysis?.resultsSummary as AnalysisResultsSummary | undefined;
     const integrationResults = dataset.integrationAnalysis?.resultsSummary as IntegrationResultsSummary | undefined;
     const trajectoryResults = dataset.trajectoryAnalysis?.resultsSummary as TrajectoryResultsSummary | undefined;
     const commResults = dataset.communicationAnalysis?.resultsSummary as CellCommunicationResultsSummary | undefined;
+    const velocityResults = dataset.velocityAnalysis?.resultsSummary as RnaVelocityResultsSummary | undefined; // Get velocity results
 
-    const clusterMethod = dataset.basicAnalysis?.parameters?.clustering_method || 'leiden'; // Get method used
+    // Determine cluster method used if basic analysis ran
+    const clusterMethod = dataset.basicAnalysis?.parameters?.clustering_method || 'leiden';
+    // Determine velocity basis used if velocity analysis ran
+    const velocityBasis = dataset.velocityAnalysis?.parameters?.embedding_basis || 'umap';
+
 
     return (
         <div className="results-viewer">
             <h4>Dataset Information</h4>
-            <ul>
-                <li>Data ID: {dataset.dataId}</li>
-                <li>Type: {dataset.isIntegrated ? `Integrated (Sources: ${dataset.sourceDataIds?.join(', ') || 'N/A'})` : `Original (${dataset.filename || 'N/A'})`}</li>
-                {/* Add more base info */}
-            </ul>
+            {/* ... Dataset Info list ... */}
 
-             {/* --- Integration Results (if applicable) --- */}
+             {/* --- Integration Results --- */}
              {dataset.isIntegrated && wasSuccessful(dataset.integrationAnalysis) && integrationResults && (
                  <div className="result-section">
                      <h5>Integration Results ({integrationResults.integration_method})</h5>
@@ -47,7 +55,7 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
                      )}
                       {/* Add integrated cluster plot if generated */}
                       {integrationResults.integrated_data_path && (
-                        <p><a href={getIntegratedDataUrl(dataset.dataId)} download={`${dataset.dataId}_integrated.h5ad`}>Download Integrated Data</a></p>
+                        <p><a href={getIntegratedDataUrl(dataset.dataId)} download={`${dataset.dataId}.h5ad`}>Download Integrated Data</a></p>
                       )}
                      {/* Display other integration summary info */}
                  </div>
@@ -74,12 +82,30 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
                 </div>
             )}
 
+             {/* --- RNA Velocity Results --- */}
+             {wasSuccessful(dataset.velocityAnalysis) && velocityResults && (
+                <div className="result-section">
+                     <h5>RNA Velocity Results (Mode: {velocityResults.velocity_calculated?.mode || 'N/A'})</h5>
+                      {!velocityResults.embedding_basis_found && <p><i>Warning: Embedding basis ('{velocityBasis}') not found in processed data; plots may be missing.</i></p>}
+                      {velocityResults.grid_plot_path && (
+                        <img src={getVelocityPlotUrl(dataset.dataId, velocityBasis, 'grid')} alt={`Velocity Grid (${velocityBasis})`} className="result-plot" />
+                     )}
+                       {velocityResults.stream_plot_path && (
+                        <img src={getVelocityPlotUrl(dataset.dataId, velocityBasis, 'stream')} alt={`Velocity Stream (${velocityBasis})`} className="result-plot" />
+                     )}
+                      {velocityResults.updated_adata_path && (
+                         <p><a href={getVelocityDataUrl(dataset.dataId)} download={`${dataset.dataId}_velocity.h5ad`}>Download Data w/ Velocity</a></p>
+                      )}
+                      {!velocityResults.grid_plot_path && !velocityResults.stream_plot_path && velocityResults.velocity_calculated && <p>Velocity calculated, but plots could not be generated (check embedding basis).</p>}
+                </div>
+             )}
+
 
             {/* --- Trajectory Analysis Results --- */}
              {wasSuccessful(dataset.trajectoryAnalysis) && trajectoryResults && (
                 <div className="result-section">
                     <h5>Trajectory Analysis Results</h5>
-                     {trajectoryResults.diffmap_plot_path && (
+                    {trajectoryResults.diffmap_plot_path && (
                         <img src={getDiffmapPlotUrl(dataset.dataId)} alt="Diffusion Map" className="result-plot" />
                      )}
                       {trajectoryResults.paga_graph_plot_path && (
@@ -94,7 +120,6 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
                      {/* Display other trajectory info */}
                 </div>
              )}
-
 
              {/* --- Cell Communication Results --- */}
              {wasSuccessful(dataset.communicationAnalysis) && commResults && (
@@ -112,10 +137,9 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
              )}
 
             {/* Message if no results are available yet */}
-             {!wasSuccessful(dataset.basicAnalysis) && !wasSuccessful(dataset.integrationAnalysis) && (
+            {!wasSuccessful(dataset.basicAnalysis) && !wasSuccessful(dataset.integrationAnalysis) && !wasSuccessful(dataset.velocityAnalysis) && (
                  <p>No analysis results available for this dataset yet. Run an analysis from Section 2.</p>
              )}
-
         </div>
     );
 };

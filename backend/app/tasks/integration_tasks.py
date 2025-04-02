@@ -24,7 +24,7 @@ def run_integration(self, output_data_id: str, params: dict):
 
     result_data_dir = Path(RESULT_DIR_STR) / output_data_id
     result_data_dir.mkdir(parents=True, exist_ok=True)
-    integrated_adata_path = UPLOAD_DIR/ f"{output_data_id}.h5ad"
+    integrated_adata_path = result_data_dir/ f"{output_data_id}_integrated.h5ad"
     umap_batch_plot_path = result_data_dir / "umap_integrated_batch.png"
     umap_clusters_plot_path = result_data_dir / "umap_integrated_clusters.png" # If clusters are computed
 
