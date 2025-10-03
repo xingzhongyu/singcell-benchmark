@@ -2,13 +2,13 @@ dump.rdb
 backend/figures
 __pycache__
 .DS_Store
-CEFCON/example_data
-CEFCON/ground_truths
-CEFCON/input
-DeepSEM/demo_data
-DeepSEM/result
-GEvoST/GEvoST/results
-GRNBoost2/data
+# CEFCON/example_data
+# CEFCON/ground_truths
+# CEFCON/input
+# DeepSEM/demo_data
+# DeepSEM/result
+# GEvoST/GEvoST/results
+# GRNBoost2/data
 # scDGRN/demo_data
 # scDGRN/processed_data
 # scDGRN/output
