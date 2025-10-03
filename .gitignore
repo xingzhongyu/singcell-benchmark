@@ -13,9 +13,9 @@ __pycache__
 # scDGRN/processed_data
 # scDGRN/output
 # scDGRN/Transfer_learning
-CEFCON/resources
-CEFCON/output
-CEFCON/prior_data
-DeepSEM/fig
-CEFCON/cefcon/resources
+# CEFCON/resources
+# CEFCON/output
+# CEFCON/prior_data
+# DeepSEM/fig
+# CEFCON/cefcon/resources
 CEFCON/data_cache
