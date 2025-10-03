@@ -9,10 +9,10 @@ DeepSEM/demo_data
 DeepSEM/result
 GEvoST/GEvoST/results
 GRNBoost2/data
-scDGRN/demo_data
-scDGRN/processed_data
-scDGRN/output
-scDGRN/Transfer_learning
+# scDGRN/demo_data
+# scDGRN/processed_data
+# scDGRN/output
+# scDGRN/Transfer_learning
 CEFCON/resources
 CEFCON/output
 CEFCON/prior_data
