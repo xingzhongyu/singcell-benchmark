@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AppDatasetState, AnalysisParameters, TrajectoryParameters, CellCommunicationParameters, RnaVelocityParameters, DatasetAnalysisState } from '../types';
+import { AppDatasetState, AnalysisParameters, TrajectoryParameters, CellCommunicationParameters, RnaVelocityParameters, DatasetAnalysisState, AtacAnalysisParameters } from '../types';
 import TaskProgress from './TaskProgress';
 
 // Define the AnalysisType locally or import if defined globally
-type AnalysisType = 'basic' | 'trajectory' | 'communication' | 'velocity';
+type AnalysisType = 'basic' | 'trajectory' | 'communication' | 'velocity'| 'atac';
 
 interface AnalysisRunnerProps {
     dataset: AppDatasetState;
@@ -14,6 +14,7 @@ interface AnalysisRunnerProps {
         trajectory: Omit<TrajectoryParameters, 'source_data_id'>;
         communication: Omit<CellCommunicationParameters, 'source_data_id'>;
         velocity: Omit<RnaVelocityParameters, 'source_data_id'>;
+        atac:Omit<AtacAnalysisParameters,'source_data_id'>
     };
 }
 
@@ -32,7 +33,7 @@ const isTaskRunning = (dataset: AppDatasetState, type: AnalysisType) => {
 const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ dataset, onRunAnalysis, defaultParams }) => {
     // State for showing parameter sections
     const [showParams, setShowParams] = useState<Record<AnalysisType, boolean>>({
-        basic: false, trajectory: false, communication: false, velocity: false
+        basic: false, trajectory: false, communication: false, velocity: false,atac:false
     });
 
     // State for parameters of each analysis type, initialized correctly
@@ -48,6 +49,9 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ dataset, onRunAnalysis,
     const [velocityParams, setVelocityParams] = useState<Omit<RnaVelocityParameters, 'source_data_id'>>(
         () => (getAnalysisState(dataset, 'velocity') as DatasetAnalysisState)?.parameters || defaultParams.velocity
     );
+    const [atacParams, setAtacParams] = useState<Omit<AtacAnalysisParameters, 'source_data_id'>>(
+        () => (getAnalysisState(dataset, 'atac') as DatasetAnalysisState)?.parameters || defaultParams.atac
+   );
 
     // Reset parameters if the selected dataset changes
     useEffect(() => {
@@ -55,6 +59,7 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ dataset, onRunAnalysis,
         setTrajectoryParams((getAnalysisState(dataset, 'trajectory') as DatasetAnalysisState)?.parameters || defaultParams.trajectory);
         setCommParams((getAnalysisState(dataset, 'communication') as DatasetAnalysisState)?.parameters || defaultParams.communication);
         setVelocityParams((getAnalysisState(dataset, 'velocity') as DatasetAnalysisState)?.parameters || defaultParams.velocity);
+        setAtacParams((getAnalysisState(dataset, 'atac') as DatasetAnalysisState)?.parameters || defaultParams.atac);
         // Reset visibility state too if desired
         // setShowParams({ basic: false, trajectory: false, communication: false, velocity: false });
     }, [dataset.dataId, defaultParams]); // Rerun when dataset ID changes
@@ -81,7 +86,8 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ dataset, onRunAnalysis,
     const canRunVelocity = !dataset.isIntegrated; // Typically run on original data, adjust if needed
     const canRunTrajectory = clusteringDone;
     const canRunCommunication = clusteringDone;
-
+    // Prerequisites (ATAC can run independently on uploaded data)
+    const canRunAtac = !!dataset.dataId; // Simple check, assumes suitable upload
     return (
         <div className="analysis-runner">
             <h4>Run Analyses on: {dataset.filename || dataset.dataId}</h4>
@@ -152,6 +158,26 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ dataset, onRunAnalysis,
                       <p><i>Note: CellPhoneDB database path must be configured on the server.</i></p>
                  </div>)}
              </div>
+             {/* --- ATAC Analysis Section --- */}
+        <div className="analysis-section">
+             <h5>ATAC Analysis (Muon)</h5>
+             {!canRunAtac && <p><i>Requires an uploaded ATAC dataset.</i></p>}
+             <button onClick={() => toggleShowParams('atac')} disabled={!canRunAtac || isTaskRunning(dataset, 'atac')}>{showParams.atac ? 'Hide' : 'Show'} Params</button>
+             <button onClick={() => onRunAnalysis('atac', atacParams)} disabled={!canRunAtac || isTaskRunning(dataset, 'atac')}>
+                 {isTaskRunning(dataset, 'atac') ? 'Running...' : ((getAnalysisState(dataset, 'atac') as DatasetAnalysisState)?.taskId ? 'Re-run' : 'Run')} ATAC Analysis
+             </button>
+             {(getAnalysisState(dataset, 'atac') as DatasetAnalysisState)?.status && <TaskProgress status={(getAnalysisState(dataset, 'atac') as DatasetAnalysisState)!.status} />}
+             {(getAnalysisState(dataset, 'atac') as DatasetAnalysisState)?.error && <p className='error-message'>Error: {(getAnalysisState(dataset, 'atac') as DatasetAnalysisState)?.error}</p>}
+             {showParams.atac && canRunAtac && (<div className="param-details"> {/* Add ATAC Param Inputs Here */}
+                <label>Min Counts/Cell:</label> <input type="number" name="qc_min_counts" value={atacParams.qc_min_counts} onChange={(e) => handleParamChange(setAtacParams, e)} /> <br/>
+                <label>Max Counts Quantile:</label> <input type="number" step="0.01" min="0" max="1" name="qc_max_counts_quantile" value={atacParams.qc_max_counts_quantile} onChange={(e) => handleParamChange(setAtacParams, e)} /> <br/>
+                <label>TF-IDF:</label> <input type="checkbox" name="tfidf_transform" checked={atacParams.tfidf_transform} onChange={(e) => handleParamChange(setAtacParams, e)} /> <br/>
+                <label>LSI Components:</label> <input type="number" name="lsi_n_components" value={atacParams.lsi_n_components} onChange={(e) => handleParamChange(setAtacParams, e)} /> <br/>
+                <label>Neighbors (LSI):</label> <input type="number" name="neighbors_n_pcs" value={atacParams.neighbors_n_pcs} onChange={(e) => handleParamChange(setAtacParams, e)} /> <br/>
+                <label>Clustering Resolution:</label> <input type="number" step="0.1" name="clustering_resolution" value={atacParams.clustering_resolution} onChange={(e) => handleParamChange(setAtacParams, e)} /> <br/>
+                {/* ... more atac params ... */}
+            </div>)}
+        </div>
         </div>
     );
 };

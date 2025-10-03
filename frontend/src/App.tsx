@@ -12,24 +12,30 @@ import TaskProgress from './components/TaskProgress';
 // API Service & Types
 import {
     uploadFile, startAnalysis, startIntegration, startTrajectory, startCommunication, startVelocity, // Added startVelocity
-    getTaskStatus
+    getTaskStatus,
+    startAtacAnalysis
 } from './services/api';
 import {
     AnalysisParameters, IntegrationParameters, TrajectoryParameters, CellCommunicationParameters, RnaVelocityParameters, // Added RnaVelocityParameters
     AppDatasetState, TaskStatus, AnalysisResultsSummary, IntegrationResultsSummary,
     TrajectoryResultsSummary, CellCommunicationResultsSummary, RnaVelocityResultsSummary, // Added RnaVelocityResultsSummary
-    TaskStartResponse, UploadResponse, DatasetAnalysisState,
+    TaskStartResponse, UploadResponse, DatasetAnalysisState, AtacAnalysisParameters,
 } from './types';
 
 // Define AnalysisType alias including 'velocity'
-type AnalysisType = 'basic' | 'integration' | 'trajectory' | 'communication' | 'velocity';
+type AnalysisType = 'basic' | 'integration' | 'trajectory' | 'communication' | 'velocity'|'atac';
 
 // Define default parameters (condense imports or move to separate file)
 const defaultBasicParams: AnalysisParameters = { mito_prefix: 'MT-', min_genes_after_qc: 200, min_cells_after_qc: 3, select_hvgs: true, hvg_min_mean: 0.0125, hvg_max_mean: 3, hvg_min_disp: 0.5, hvg_n_top_genes: null, normalize_target_sum: 10000, pca_n_comps: 50, neighbors_n_pcs: 30, neighbors_n_neighbors: 15, umap_min_dist: 0.5, umap_spread: 1.0, clustering_method: 'leiden', leiden_resolution: 0.5, louvain_resolution: 0.5, marker_gene_method: 'wilcoxon', marker_gene_n_genes: 25 };
 const defaultTrajectoryParams: Omit<TrajectoryParameters, 'source_data_id'> = { run_diffmap: true, diffmap_n_comps: 15, run_paga: true, paga_clustering_key: "clusters", paga_threshold_connectivities: 0.05, paga_threshold_confidence: 0.01, calculate_dpt: true, dpt_root_cluster: null };
 const defaultCommunicationParams: Omit<CellCommunicationParameters, 'source_data_id'> = { clustering_key: "clusters", counts_layer: null, gene_id_column: null, output_path_suffix: "cellphonedb_out", threads: 4, subsampling: false, subsampling_num_pc: 100, subsampling_log: false };
 const defaultVelocityParams: Omit<RnaVelocityParameters, 'source_data_id'> = { mode: 'stochastic', fit_basal_transcription: true, vgraph_n_neighbors: null, vgraph_approx: null, embedding_basis: 'umap', color_key: 'clusters', save_updated_adata: false };
-
+const defaultAtacParams: Omit<AtacAnalysisParameters, 'source_data_id'> = { // <<< ADD THIS
+    qc_min_counts: 1000, qc_max_counts_quantile: 0.99, qc_min_features_by_counts: 500,
+    tfidf_transform: true, tfidf_scale_factor: null, lsi_n_components: 50, lsi_use_highly_variable: false,
+    neighbors_n_pcs: 30, neighbors_n_neighbors: 15, run_umap: true, umap_min_dist: 0.5, umap_spread: 1.0,
+    run_clustering: true, clustering_resolution: 0.5, save_processed_adata: true
+};
 
 function App() {
     const [datasets, setDatasets] = useState<Record<string, AppDatasetState>>({});
@@ -71,6 +77,7 @@ function App() {
                     trajectoryAnalysis: undefined,
                     communicationAnalysis: undefined,
                     velocityAnalysis: undefined, // Initialize velocity state
+                    atacAnalysis: undefined, // <<< ADD THIS INITIALIZATION
                 };
             } catch (error: any) {
                 console.error(`Upload failed for ${pf.file.name}:`, error);
@@ -139,7 +146,7 @@ function App() {
     // --- Effect to Manage Polling Intervals (Stable) ---
     useEffect(() => {
         const analysisTypeKeys: (keyof Omit<AppDatasetState, 'dataId' | 'filename' | 'isIntegrated' | 'uploadTime' | 'sourceDataIds' | 'batchLabel'>)[] = [
-            'basicAnalysis', 'integrationAnalysis', 'trajectoryAnalysis', 'communicationAnalysis', 'velocityAnalysis' // Added velocityAnalysis
+            'basicAnalysis', 'integrationAnalysis', 'trajectoryAnalysis', 'communicationAnalysis', 'velocityAnalysis', 'atacAnalysis'
         ];
 
         Object.entries(datasets).forEach(([dataId, datasetState]) => {
@@ -182,7 +189,7 @@ function App() {
 
     // --- Running Analyses on Selected Dataset ---
     const handleRunAnalysis = async (
-        analysisType: AnalysisType, // Now includes 'velocity'
+        analysisType: AnalysisType, 
         params: any
     ) => {
         if (!selectedDataId) { setGlobalError("No dataset selected."); return; }
@@ -222,6 +229,9 @@ function App() {
                     break;
                 case 'velocity':
                     response = await startVelocity(finalParams as RnaVelocityParameters);
+                    break;
+                case 'atac': // <<< ADD THIS CASE
+                    response = await startAtacAnalysis(finalParams as AtacAnalysisParameters);
                     break;
                 // case 'integration': // Integration is handled by handleStartIntegration
                 //     break;
@@ -298,7 +308,7 @@ function App() {
 
     return (
         <div className="App">
-            <header className="App-header"><h1>Scanpy Multi-Analysis App</h1></header>
+            <header className="App-header"><h1>Single Cell Multi-Analysis App</h1></header>
             <main>
                 {globalError && <p className="global-error">Error: {globalError}</p>}
                 <section className="app-section">
@@ -314,7 +324,7 @@ function App() {
                     <section className="app-section">
                         <hr /><h3>2. Select Dataset & Analyze</h3>
                         <DatasetSelector datasets={selectableDatasets} onSelect={handleDatasetSelect} selectedId={selectedDataId} />
-                        {selectedDataset && ( <AnalysisRunner dataset={selectedDataset} onRunAnalysis={handleRunAnalysis} defaultParams={{ basic: defaultBasicParams, trajectory: defaultTrajectoryParams, communication: defaultCommunicationParams, velocity: defaultVelocityParams }}/> )}
+                        {selectedDataset && ( <AnalysisRunner dataset={selectedDataset} onRunAnalysis={handleRunAnalysis} defaultParams={{ basic: defaultBasicParams, trajectory: defaultTrajectoryParams, communication: defaultCommunicationParams, velocity: defaultVelocityParams,atac:defaultAtacParams}}/> )}
                     </section>
                  )}
 

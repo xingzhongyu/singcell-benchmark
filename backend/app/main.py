@@ -5,9 +5,9 @@ import uvicorn
 
 # Import existing and new routers
 from .routers import data, analysis
-from .routers import integration, trajectory, communication,velocity # NEW
+from .routers import integration, trajectory, communication,velocity,atac # NEW
 
-app = FastAPI(title="Scanpy Analysis API")
+app = FastAPI(title="Scanpy Multi-Modal Analysis API")
 
 # --- CORS Middleware --- (Keep existing)
 origins = [
@@ -25,7 +25,8 @@ app.add_middleware(
 
 # --- Include Routers ---
 app.include_router(data.router, prefix="/api/data", tags=["Data Upload & Base Results"])
-app.include_router(analysis.router, prefix="/api/analysis", tags=["Basic Analysis Tasks"])
+app.include_router(analysis.router, prefix="/api/analysis", tags=["Basic RNA Analysis Tasks"])
+app.include_router(atac.router, prefix="/api/atac", tags=["ATAC Analysis Tasks (Muon)"]) # NEW Router & Tag
 app.include_router(integration.router, prefix="/api/integration", tags=["Data Integration Tasks"]) # NEW
 app.include_router(trajectory.router, prefix="/api/trajectory", tags=["Trajectory Analysis Tasks"]) # NEW
 app.include_router(communication.router, prefix="/api/communication", tags=["Cell Communication Tasks"]) # NEW

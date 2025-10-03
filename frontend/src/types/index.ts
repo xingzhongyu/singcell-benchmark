@@ -221,14 +221,49 @@ export interface RnaVelocityResultsSummary {
   updated_adata_path?: string | null;
 }
 
+// --- ATAC Analysis ---
+export interface AtacAnalysisParameters {
+  source_data_id: string; // Set automatically
+  qc_min_counts: number;
+  qc_max_counts_quantile: number;
+  qc_min_features_by_counts: number;
+  tfidf_transform: boolean;
+  tfidf_scale_factor?: number | null;
+  lsi_n_components: number;
+  lsi_use_highly_variable: boolean;
+  neighbors_n_pcs: number;
+  neighbors_n_neighbors: number;
+  run_umap: boolean;
+  umap_min_dist: number;
+  umap_spread: number;
+  run_clustering: boolean;
+  clustering_resolution: number;
+  save_processed_adata: boolean;
+}
 
+export interface AtacAnalysisResultsSummary {
+  source_data_id: string;
+  data_loaded?: boolean;
+  initial_shape?: { obs: number; var: number };
+  qc_calculated?: boolean;
+  qc_plot_path?: string | null;
+  shape_after_filtering?: { obs: number; var: number };
+  tfidf_done?: boolean;
+  lsi_done?: { n_components_used: number };
+  neighbors_done?: boolean;
+  umap_done?: boolean;
+  clustering_done?: boolean;
+  umap_cluster_plot_path?: string | null;
+  // Add paths for other potential plots (e.g., UMAP by counts)
+  processed_adata_path?: string | null;
+}
 // Update TaskStatus result to potentially hold different summary types
 export interface TaskStatus {
 task_id: string;
 // Add task type? Might be useful for frontend logic
 // task_type: 'basic' | 'integration' | 'trajectory' | 'communication';
 status: 'PENDING' | 'STARTED' | 'PROGRESS' | 'SUCCESS' | 'FAILURE' | 'RETRY' | 'REVOKED';
-result?: TaskProgressMeta | { status: 'Complete'; results_summary: AnalysisResultsSummary | IntegrationResultsSummary | TrajectoryResultsSummary | CellCommunicationResultsSummary| RnaVelocityResultsSummary } | TaskFailureResult | null | any;
+result?: TaskProgressMeta | { status: 'Complete'; results_summary: AnalysisResultsSummary | IntegrationResultsSummary | TrajectoryResultsSummary | CellCommunicationResultsSummary| RnaVelocityResultsSummary |AtacAnalysisResultsSummary} | TaskFailureResult | null | any;
 }
 
 // Type to manage state for different analysis types run on a dataset
@@ -254,5 +289,6 @@ export interface AppDatasetState {
   // Store source IDs if integrated
   sourceDataIds?: string[];
   batchLabel?:string;
+  atacAnalysis?: DatasetAnalysisState; // Add state for ATAC analysis
 }
 

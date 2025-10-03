@@ -5,7 +5,8 @@ import {
     MarkerGene, GeneExpressionResponse,
     IntegrationParameters, TrajectoryParameters, CellCommunicationParameters,
     IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, AppDatasetState, // Add AppDatasetState if used for complex state
-    RnaVelocityParameters
+    RnaVelocityParameters,
+    AtacAnalysisParameters
 } from '../types';
 
 // Adjust if your backend runs on a different port or host
@@ -262,4 +263,38 @@ export const getVelocityPlotUrl = (sourceDataId: string, basis: string, type: 'g
 export const getVelocityDataUrl = (sourceDataId: string): string => {
     if (!sourceDataId) return "";
     return `${API_BASE_URL}/velocity/results/${sourceDataId}/velocity_data`;
+};
+
+// --- ATAC Analysis Task ---
+export const startAtacAnalysis = async (params: AtacAnalysisParameters): Promise<TaskStartResponse> => {
+    try {
+        // source_data_id should be set correctly before calling this
+        const response = await apiClient.post('/atac/start', params);
+        return response.data;
+    } catch (error) {
+        console.error("Start ATAC analysis error:", error);
+        if (axios.isAxiosError(error) && error.response) {
+            throw new Error(error.response.data.detail || 'Failed to start ATAC analysis');
+        }
+        throw new Error('Failed to start ATAC analysis due to an unknown error');
+     }
+};
+
+export const getAtacTaskStatus = getTaskStatus; // Reuse main status checker
+
+// --- URLs for ATAC Results ---
+export const getAtacUmapPlotUrl = (sourceDataId: string, colorBy: string = 'clusters'): string => {
+    if (!sourceDataId) return "";
+    // Backend endpoint expects color_by in the URL path
+    return `${API_BASE_URL}/atac/results/${sourceDataId}/plot/atac_umap?color_by=${encodeURIComponent(colorBy)}&t=${new Date().getTime()}`; // Pass color_by as query param or adjust endpoint
+};
+
+export const getAtacQcPlotUrl = (sourceDataId: string): string => {
+    if (!sourceDataId) return "";
+    return `${API_BASE_URL}/atac/results/${sourceDataId}/plot/atac_qc?t=${new Date().getTime()}`;
+};
+
+export const getProcessedAtacDataUrl = (sourceDataId: string): string => {
+    if (!sourceDataId) return "";
+    return `${API_BASE_URL}/atac/results/${sourceDataId}/processed_atac_data`;
 };

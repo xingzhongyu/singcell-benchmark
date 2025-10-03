@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppDatasetState, AnalysisResultsSummary, IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, RnaVelocityResultsSummary } from '../types'; // Ensure RnaVelocityResultsSummary is imported
+import { AppDatasetState, AnalysisResultsSummary, IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, RnaVelocityResultsSummary, AtacAnalysisResultsSummary } from '../types'; // Ensure RnaVelocityResultsSummary is imported
 import {
     // ... existing imports ...
     getVelocityPlotUrl, getVelocityDataUrl, // Add velocity URL getters
@@ -12,7 +12,10 @@ import {
     getDiffmapPlotUrl,
     getPagaPlotUrl,
     getDptUmapPlotUrl,
-    getCellPhoneDbDownloadUrl
+    getCellPhoneDbDownloadUrl,
+    getAtacQcPlotUrl,
+    getAtacUmapPlotUrl,
+    getProcessedAtacDataUrl
  } from '../services/api';
 // import Plot from 'react-plotly.js'; // If needed later
 import './styles.css';
@@ -39,7 +42,8 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
     const clusterMethod = dataset.basicAnalysis?.parameters?.clustering_method || 'leiden';
     // Determine velocity basis used if velocity analysis ran
     const velocityBasis = dataset.velocityAnalysis?.parameters?.embedding_basis || 'umap';
-
+    const atacResults = dataset.atacAnalysis?.resultsSummary as AtacAnalysisResultsSummary | undefined;
+    const atacColorKey = atacResults?.clustering_done ? 'clusters' : undefined; // Default to clusters if available
 
     return (
         <div className="results-viewer">
@@ -140,6 +144,32 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
             {!wasSuccessful(dataset.basicAnalysis) && !wasSuccessful(dataset.integrationAnalysis) && !wasSuccessful(dataset.velocityAnalysis) && (
                  <p>No analysis results available for this dataset yet. Run an analysis from Section 2.</p>
              )}
+            {/* --- ATAC Analysis Results --- */}
+            {wasSuccessful(dataset.atacAnalysis) && atacResults && (
+                <div className="result-section">
+                    <h5>ATAC Analysis Results</h5>
+                    {atacResults.qc_plot_path && (
+                        <img src={getAtacQcPlotUrl(dataset.dataId)} alt="ATAC QC Violin Plot" className="result-plot" />
+                    )}
+                    {atacResults.umap_cluster_plot_path && atacColorKey && ( // Use the specific path if available
+                        <img src={getAtacUmapPlotUrl(dataset.dataId, atacColorKey)} alt={`ATAC UMAP (${atacColorKey})`} className="result-plot" />
+                    )}
+                     {!atacResults.umap_cluster_plot_path && atacResults.umap_done && <p>ATAC UMAP plot generated but coloring by cluster might have failed.</p>}
+                     {!atacResults.umap_done && <p>ATAC UMAP was not calculated or failed.</p>}
+
+                    {atacResults.processed_adata_path && (
+                        <p><a href={getProcessedAtacDataUrl(dataset.dataId)} download={`${dataset.dataId}_processed_atac.h5ad`}>Download Processed ATAC Data</a></p>
+                    )}
+                    {/* Display other summary info like shapes, LSI components used */}
+                    <ul>
+                         {atacResults.initial_shape && <li>Initial Shape: {atacResults.initial_shape.obs} cells x {atacResults.initial_shape.var} features</li>}
+                         {atacResults.shape_after_filtering && <li>Shape after Filtering: {atacResults.shape_after_filtering.obs} x {atacResults.shape_after_filtering.var}</li>}
+                         {atacResults.lsi_done && <li>LSI Components Used: {atacResults.lsi_done.n_components_used}</li>}
+                    </ul>
+                </div>
+            )}
+
+            {/* ... No results message ... */}
         </div>
     );
 };

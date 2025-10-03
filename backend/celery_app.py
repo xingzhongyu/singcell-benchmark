@@ -14,6 +14,7 @@ celery_app = Celery(
         "app.tasks.trajectory_tasks",   # NEW
         "app.tasks.communication_tasks",# NEW
         "app.tasks.velocity_tasks", # NEW
+        "app.tasks.atac_tasks", # NEW
         ],
 )
 

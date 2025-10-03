@@ -130,3 +130,44 @@ class RnaVelocityParams(BaseModel):
 
     # Output options
     save_updated_adata: bool = Field(False, description="Save the AnnData object with velocity results added")
+    
+# --- ATAC-seq Processing Models (using Muon) ---
+class AtacAnalysisParams(BaseModel):
+    source_data_id: str = Field(..., description="Data ID of the uploaded ATAC AnnData (.h5ad)")
+    # Input format assumptions (e.g., raw counts) - might need more params if input varies
+
+    # QC & Filtering
+    qc_min_counts: int = Field(1000, description="Muon ATAC QC: Minimum total counts per cell")
+    qc_max_counts_quantile: float = Field(0.99, description="Muon ATAC QC: Quantile for max counts per cell filter")
+    qc_min_features_by_counts: int = Field(500, description="Muon ATAC QC: Minimum features (peaks/bins) per cell")
+    # qc_tss_enrichment: Optional[float] = Field(None, description="Muon ATAC QC: Minimum TSS enrichment score (requires TSS score calculation)") # Requires precomputed TSS scores or running calculation
+    # qc_fract_reads_in_peaks: Optional[float] = Field(None, description="Muon ATAC QC: Minimum fraction of reads in peaks") # Requires peak definition
+
+    # Feature Selection / Transformation
+    tfidf_transform: bool = Field(True, description="Apply TF-IDF transformation (Term Frequency - Inverse Document Frequency)")
+    tfidf_scale_factor: Optional[float] = Field(None, description="Optional scaling factor after TF-IDF (e.g., 1e4)")
+
+    # Dimensionality Reduction (LSI - Latent Semantic Indexing via SVD)
+    lsi_n_components: int = Field(50, description="Number of LSI components to compute (excluding the first)")
+    lsi_use_highly_variable: bool = Field(False, description="Muon ATAC LSI: Base LSI on highly variable features (requires HVF calculation)")
+    # Optional HVF params if lsi_use_highly_variable is True
+    # hvf_n_top_features: int = Field(50000, ...)
+
+    # Neighbors & UMAP (based on LSI components)
+    neighbors_n_pcs: int = Field(30, description="Number of LSI components (excluding first) to use for neighbors graph")
+    neighbors_n_neighbors: int = Field(15, description="Number of neighbors for graph construction")
+    run_umap: bool = Field(True, description="Run UMAP on the neighbors graph")
+    umap_min_dist: float = Field(0.5, description="UMAP min_dist")
+    umap_spread: float = Field(1.0, description="UMAP spread")
+
+    # Clustering
+    run_clustering: bool = Field(True, description="Run clustering (Leiden) on the neighbors graph")
+    clustering_resolution: float = Field(0.5, description="Resolution for Leiden clustering")
+
+    # Optional: Motif Analysis (Requires genome and motif database)
+    # run_motif_analysis: bool = Field(False, ...)
+    # genome: Literal['hg38', 'mm10'] = Field('hg38', ...)
+    # motif_db_path: str = Field(...) # Path to motif database (.pfm files)
+
+    # Output options
+    save_processed_adata: bool = Field(True, description="Save the processed ATAC AnnData object")
