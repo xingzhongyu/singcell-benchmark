@@ -1,0 +1,38 @@
+# requirements.txt for CEFCON
+
+# --- Core Dependencies ---
+# PyTorch version is critical. This range is specified by the author.
+# Note: The specific build (+cu117, +cpu) should be installed separately, 
+# as shown in the Dockerfile, not directly from this file.
+torch>=1.13.0,<2.0
+
+# PyTorch Geometric is also installed separately in the Dockerfile to match the PyTorch/CUDA build.
+torch-geometric>=2.1.0
+
+scanpy>=1.8.2
+networkx>=3.0
+cvxpy>=1.2.0
+
+# GUROBI is a commercial solver. Installation requires a license.
+# If you don't have a license, this may fail or run in a limited mode.
+# The tool will fall back to SCIP if GUROBI is not available/licensed.
+gurobipy>=10.0.0
+
+pyscenic>=0.12.0
+numpy
+scipy
+pandas
+scikit-learn
+tqdm
+
+# --- Optional Dependencies (for evaluation, visualization, etc.) ---
+matplotlib>=3.5.3
+matplotlib-venn>=0.11.7
+seaborn>=0.12.1
+palantir==1.0.1
+rpy2>=3.4.1
+
+
+fastapi
+uvicorn
+python-multipart

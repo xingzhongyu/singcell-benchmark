@@ -1,7 +1,7 @@
 # === PyTorch Core ===
-torch==1.12.1
-torchaudio==0.12.1
-torchvision==0.13.1
+torch==1.13.1
+torchaudio
+torchvision
 
 # === Core Data Science & ML ===
 arboreto==0.1.6
