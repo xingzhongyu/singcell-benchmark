@@ -19,3 +19,4 @@ __pycache__
 # DeepSEM/fig
 # CEFCON/cefcon/resources
 CEFCON/data_cache
+scDGRN/processed_data/test_data
