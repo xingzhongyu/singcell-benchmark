@@ -1,0 +1,114 @@
+{
+  "service_id": "spatial-transcriptomics-preprocessing",
+  "name": "空间转录组数据预处理",
+  "description": "对空间转录组数据进行预处理，包括数据加载、质量控制和标准化，支持多种文件格式（h5ad、10x_h5、csv、tsv）",
+  "version": "1.0.0",
+  "baseurl": "http://localhost:42809",
+  "port": 42809,
+  "service_suffix": "/api/preprocess",
+  "download_suffix": "/api/download",
+  "parameter_template": {
+    "file_type": "auto",
+    "min_genes": 200,
+    "min_cells": 3,
+    "max_mito_percent": 5.0,
+    "mito_prefix": "MT-",
+    "normalization_method": "log1p",
+    "target_sum": 10000,
+    "highly_variable_genes": true,
+    "n_top_genes": 2000
+  },
+  "parameter_schema": {
+    "file_type": {
+      "type": "enum",
+      "default_value": "auto",
+      "enum_values": [
+        "auto",
+        "h5ad",
+        "10x_h5",
+        "csv",
+        "tsv"
+      ],
+      "description": "文件类型：auto（自动检测）、h5ad、10x_h5、csv、tsv",
+      "required": false
+    },
+    "min_genes": {
+      "type": "discrete",
+      "default_value": 200,
+      "min_value": 1,
+      "max_value": 1000,
+      "description": "每个细胞最少表达的基因数，低于此值的细胞将被过滤",
+      "required": false
+    },
+    "min_cells": {
+      "type": "discrete",
+      "default_value": 3,
+      "min_value": 1,
+      "max_value": 100,
+      "description": "每个基因最少在多少个细胞中表达，低于此值的基因将被过滤",
+      "required": false
+    },
+    "max_mito_percent": {
+      "type": "continuous",
+      "default_value": 5.0,
+      "min_value": 0.0,
+      "max_value": 100.0,
+      "description": "线粒体基因最大百分比，高于此值的细胞将被过滤",
+      "required": false
+    },
+    "mito_prefix": {
+      "type": "string",
+      "default_value": "MT-",
+      "description": "线粒体基因前缀，用于识别线粒体基因（人类：MT-，小鼠：mt-）",
+      "required": false
+    },
+    "normalization_method": {
+      "type": "enum",
+      "default_value": "log1p",
+      "enum_values": [
+        "log1p",
+        "sqrt",
+        "none"
+      ],
+      "description": "标准化方法：log1p（log(x+1)变换）、sqrt（平方根变换）、none（不进行变换）",
+      "required": false
+    },
+    "target_sum": {
+      "type": "continuous",
+      "default_value": 10000,
+      "min_value": 1000,
+      "max_value": 100000,
+      "description": "标准化目标总和，用于标准化每个细胞的总表达量",
+      "required": false
+    },
+    "highly_variable_genes": {
+      "type": "boolean",
+      "default_value": true,
+      "description": "是否选择高变基因，高变基因是表达变异较大的基因，通常用于后续分析",
+      "required": false
+    },
+    "n_top_genes": {
+      "type": "discrete",
+      "default_value": 2000,
+      "min_value": 100,
+      "max_value": 5000,
+      "description": "高变基因数量，选择表达变异最大的前N个基因",
+      "required": false
+    }
+  },
+  "output_config": {
+    "collection_description": "输出预处理后的空间转录组数据文件和预处理统计信息",
+    "items": [
+      {
+        "type": "file",
+        "filename": "preprocessed_data.h5ad",
+        "description": "预处理后的空间转录组数据文件（h5ad格式），包含质量控制后的数据和标准化后的表达矩阵"
+      },
+      {
+        "type": "text",
+        "filename": "处理统计信息",
+        "description": "包含数据预处理统计信息：初始数据维度、质量控制统计（过滤的细胞数和基因数、线粒体过滤统计）、数据标准化统计（标准化方法、高变基因数量、最终数据维度）"
+      }
+    ]
+  }
+}
