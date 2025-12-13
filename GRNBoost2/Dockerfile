@@ -64,4 +64,4 @@ COPY . .
 # 容器启动时默认执行的命令
 # 这里设置为bash，方便您进入容器后进行调试或手动运行脚本
 # 您可以根据需要修改为 `CMD ["python", "your_main_script.py"]`
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]

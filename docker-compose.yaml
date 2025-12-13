@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  redis:
+    image: "redis:7-alpine"
+    container_name: singcell_redis_container
+    networks:
+      - app-network
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build: ./backend
+    image: singcell/fastapi-backend
+    container_name: singcell_backend_container
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - deepsem
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - FASTAPI_ENV=development
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEEPSEM_BASE_URL=http://deepsem:8002
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./figures:/app/figures
+      - ./sample_data:/app/sample_data
+      - ./cellphonedb_data:/app/cellphonedb_data
+
+  deepsem:
+    build: ./DeepSEM
+    image: singcell/deepsem
+    container_name: singcell_deepsem_container
+    command: uvicorn main:app --host 0.0.0.0 --port 8002
+    networks:
+      - app-network
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./DeepSEM:/app
+    # GPU 支持配置 - 使用 nvidia runtime
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+  worker:
+    build: ./backend
+    image: singcell/fastapi-backend
+    container_name: singcell_celery_worker_container
+    command: celery -A celery_app.celery_app worker --loglevel=info
+    networks:
+      - app-network
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./figures:/app/figures
+      - ./sample_data:/app/sample_data
+      - ./cellphonedb_data:/app/cellphonedb_data
+
+  frontend:
+    build:
+      context: ./frontend
+      target: builder
+      args:
+        - REACT_APP_BACKEND_URL=http://sdu-159:8000/api
+    container_name: singcell_frontend_container
+    working_dir: /app
+    command: npm start
+    ports:
+      - "3002:3002"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_BACKEND_URL=http://sdu-159:8000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+

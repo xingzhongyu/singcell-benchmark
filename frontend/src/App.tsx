@@ -8,7 +8,8 @@ import DatasetSelector from './components/DatasetSelector';
 import AnalysisRunner from './components/AnalysisRunner';
 import ResultsViewer from './components/ResultsViewer';
 import TaskProgress from './components/TaskProgress';
-
+import Sidebar from './components/Sidebar'; // <<< 1. 引入侧边栏组件
+import './components/Sidebar.css';      // <<< 2. 引入侧边栏样式 (如果还没在 Sidebar.tsx 中引入)
 // API Service & Types
 import {
     uploadFile, startAnalysis, startIntegration, startTrajectory, startCommunication, startVelocity, // Added startVelocity
@@ -309,13 +310,19 @@ function App() {
     return (
         <div className="App">
             <header className="App-header"><h1>Single Cell Multi-Analysis App</h1></header>
-            <main>
+            <div className="app-body"> 
+            <Sidebar />
+            <main className="main-content">
                 {globalError && <p className="global-error">Error: {globalError}</p>}
                 <section className="app-section">
                     <h3>1. Upload & Integrate Data</h3>
                     <MultiFileUpload onFilesPrepared={handleFilesPrepared} uploadProgress={uploadProgress} isUploading={isUploading}/>
-                    <button onClick={handleConfirmUploads} disabled={filesToUpload.length === 0 || isUploading}>
-                        {isUploading ? 'Uploading...' : `Upload ${filesToUpload.length} File(s)`}
+                    <button
+                        className="primary-action-btn"
+                        onClick={handleConfirmUploads}
+                        disabled={filesToUpload.length === 0 || isUploading}
+                    >
+                        <span className="btn-label">{isUploading ? '上传中…' : `上传 ${filesToUpload.length} 个文件`}</span>
                     </button>
                     <IntegrationConfig availableDatasets={Object.values(datasets).filter(d => !d.isIntegrated)} onStartIntegration={handleStartIntegration} activeIntegrationTask={Object.values(datasets).find(d => d.isIntegrated && d.integrationAnalysis && !['SUCCESS', 'FAILURE'].includes(d.integrationAnalysis.status?.status ?? ''))?.integrationAnalysis}/>
                 </section>
@@ -336,6 +343,7 @@ function App() {
                  )}
                  {Object.keys(datasets).length === 0 && !isUploading && filesToUpload.length === 0 && (<p>Upload one or more .h5ad files to begin.</p>)}
             </main>
+            </div>
         </div>
     );
 }

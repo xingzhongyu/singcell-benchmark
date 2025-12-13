@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { IntegrationParameters, AppDatasetState, TaskStatus } from '../types'; // Assuming DatasetAnalysisState is part of AppDatasetState
 import TaskProgress from './TaskProgress';
-// import './styles.css';
+import './IntegrationConfig.css';
 
 interface IntegrationConfigProps {
     availableDatasets: AppDatasetState[]; // Pass original uploaded datasets
@@ -72,47 +72,82 @@ const IntegrationConfig: React.FC<IntegrationConfigProps> = ({
 
     return (
         <div className="integration-config">
-            <h4>Integrate Datasets</h4>
-            {availableDatasets.length < 2 && <p>Upload at least two datasets to enable integration.</p>}
+            <div className="integration-card">
+                <div className="integration-header">
+                    <div>
+                        <h4>整合数据集</h4>
+                        <p>选择至少 2 个数据集并指定批次字段，支持 BBKNN / Harmony。</p>
+                    </div>
+                    <span className={`tag ${isBusy ? 'tag-busy' : 'tag-idle'}`}>
+                        {isBusy ? '运行中' : '待启动'}
+                    </span>
+                </div>
+
+                {availableDatasets.length < 2 && (
+                    <div className="integration-empty">请先上传至少两个数据集以启用整合。</div>
+                )}
+
             {availableDatasets.length >= 2 && (
-                <form onSubmit={handleSubmit}>
-                    <p>Select datasets to integrate:</p>
+                    <form onSubmit={handleSubmit} className="integration-form">
+                        <div className="section-title">选择待整合的数据集：</div>
+                        <div className="dataset-list">
                     {availableDatasets.map(ds => (
-                        <div key={ds.dataId}>
+                                <label key={ds.dataId} className="dataset-item">
                             <input
                                 type="checkbox"
-                                id={`integrate-${ds.dataId}`}
                                 checked={selectedDataIds.includes(ds.dataId)}
                                 onChange={() => handleCheckboxChange(ds.dataId)}
                                 disabled={isBusy}
                             />
-                            <label htmlFor={`integrate-${ds.dataId}`}>{ds.filename || ds.dataId}</label>
+                                    <span className="dataset-name">{ds.filename || ds.dataId}</span>
+                                </label>
+                            ))}
                         </div>
-                    ))}
 
-                    <div>
-                        <label htmlFor="integration-method">Method: </label>
-                        <select id="integration-method" value={method} onChange={e => setMethod(e.target.value as 'bbknn' | 'harmony')} disabled={isBusy}>
+                        <div className="field-row">
+                            <label htmlFor="integration-method">整合方法</label>
+                            <select
+                                id="integration-method"
+                                value={method}
+                                onChange={e => setMethod(e.target.value as 'bbknn' | 'harmony')}
+                                disabled={isBusy}
+                            >
                             <option value="bbknn">BBKNN</option>
                             <option value="harmony">Harmony</option>
                         </select>
                     </div>
-                    <div>
-                        <label htmlFor="batch-key">Batch Key (adata.obs): </label>
-                        <input type="text" id="batch-key" value={batchKey} onChange={e => setBatchKey(e.target.value)} required disabled={isBusy}/>
-                    </div>
-                     {/* Add more parameter inputs for BBKNN/Harmony/Post-steps here */}
 
-                    <button type="submit" disabled={selectedDataIds.length < 2 || isBusy}>
-                        {isBusy ? 'Integration Running...' : 'Start Integration'}
+                        <div className="field-row">
+                            <label htmlFor="batch-key">批次字段 (adata.obs)</label>
+                            <input
+                                type="text"
+                                id="batch-key"
+                                value={batchKey}
+                                onChange={e => setBatchKey(e.target.value)}
+                                required
+                                disabled={isBusy}
+                                placeholder="例如：batch"
+                            />
+                    </div>
+
+                        <div className="action-row">
+                            <button
+                                type="submit"
+                                className="primary-action-btn"
+                                disabled={selectedDataIds.length < 2 || isBusy}
+                            >
+                                {isBusy ? '整合进行中…' : '开始整合'}
                     </button>
+                        </div>
+
                      {activeIntegrationTask && activeIntegrationTask.status && (
-                         <div style={{marginTop: '10px'}}>
+                            <div className="progress-wrapper">
                              <TaskProgress status={activeIntegrationTask.status} />
                          </div>
                      )}
                 </form>
             )}
+            </div>
         </div>
     );
 };

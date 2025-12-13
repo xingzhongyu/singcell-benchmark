@@ -1,21 +1,54 @@
-.App {
-  font-family: sans-serif;
-  padding: 20px;
+/* === Global Resets & App Container === */
+/* 添加一个简单的 reset，确保 body 和 html 占满全屏 */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
 }
 
+/* .App 现在是整个页面的垂直 flex 容器 */
+.App {
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: column; /* 垂直排列：Header 在上，app-body 在下 */
+  height: 100vh; /* App 容器占满整个视口高度 */
+  /* 移除了 padding: 20px; 这是解决空隙问题的关键 */
+}
+
+/* === Header === */
 .App-header {
   background-color: #282c34;
   padding: 15px;
   color: white;
   text-align: center;
-  margin-bottom: 20px;
+  flex-shrink: 0; /* 防止 Header 在内容过多时被压缩 */
+  /* 移除了 margin-bottom: 20px; 这是解决空隙问题的关键 */
 }
 
+/* === Body Container (Sidebar + Main Content) === */
+/* 这个新容器是水平 flex 容器 */
+.app-body {
+    display: flex;
+    flex-grow: 1; /* 占据 App 容器中除了 Header 之外的所有剩余空间 */
+    overflow: hidden; /* 防止子元素溢出导致布局问题 */
+}
+
+/* === Main Content Area === */
+/* 注意：这个 class 应该在 <main> 标签上 */
+.main-content {
+  flex-grow: 1; /* 占据 app-body 中除了 Sidebar 之外的所有剩余空间 */
+  overflow-y: auto; /* 当内容超出时，只在这里出现垂直滚动条 */
+  padding: 20px; /* 将原来 .App 的 padding 移到这里，让内容区有边距 */
+}
+
+/* main 标签的样式，控制内容的最大宽度和居中 */
 main {
   max-width: 800px;
   margin: 0 auto;
 }
 
+
+/* === 其他通用样式 (保持不变) === */
 h3 {
   border-bottom: 1px solid #eee;
   padding-bottom: 5px;
@@ -26,6 +59,37 @@ button {
   padding: 8px 15px;
   margin-left: 10px;
   cursor: pointer;
+}
+
+.primary-action-btn {
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
+  transition: transform 0.1s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.primary-action-btn:hover:enabled {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
+}
+
+.primary-action-btn:active:enabled {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+}
+
+.primary-action-btn:disabled {
+  background: #94a3b8;
+  box-shadow: none;
 }
 
 button:disabled {

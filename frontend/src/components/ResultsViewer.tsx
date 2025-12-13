@@ -1,8 +1,7 @@
 import React from 'react';
-import { AppDatasetState, AnalysisResultsSummary, IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, RnaVelocityResultsSummary, AtacAnalysisResultsSummary } from '../types'; // Ensure RnaVelocityResultsSummary is imported
+import { AppDatasetState, AnalysisResultsSummary, IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, RnaVelocityResultsSummary, AtacAnalysisResultsSummary } from '../types';
 import {
-    // ... existing imports ...
-    getVelocityPlotUrl, getVelocityDataUrl, // Add velocity URL getters
+    getVelocityPlotUrl, getVelocityDataUrl,
     getIntegratedUmapPlotUrl,
     getIntegratedDataUrl,
     getQCViolinPlotUrl,
@@ -17,8 +16,7 @@ import {
     getAtacUmapPlotUrl,
     getProcessedAtacDataUrl
  } from '../services/api';
-// import Plot from 'react-plotly.js'; // If needed later
-import './styles.css';
+import './ResultsViewer.css';
 
 interface ResultsViewerProps {
     dataset: AppDatasetState;
@@ -47,129 +45,213 @@ const ResultsViewer: React.FC<ResultsViewerProps> = ({ dataset }) => {
 
     return (
         <div className="results-viewer">
-            <h4>Dataset Information</h4>
-            {/* ... Dataset Info list ... */}
-
-             {/* --- Integration Results --- */}
-             {dataset.isIntegrated && wasSuccessful(dataset.integrationAnalysis) && integrationResults && (
-                 <div className="result-section">
-                     <h5>Integration Results ({integrationResults.integration_method})</h5>
-                     {integrationResults.umap_batch_plot_path && (
-                        <img src={getIntegratedUmapPlotUrl(dataset.dataId, 'batch')} alt="Integrated UMAP by Batch" className="result-plot" />
-                     )}
-                      {/* Add integrated cluster plot if generated */}
-                      {integrationResults.integrated_data_path && (
-                        <p><a href={getIntegratedDataUrl(dataset.dataId)} download={`${dataset.dataId}.h5ad`}>Download Integrated Data</a></p>
-                      )}
-                     {/* Display other integration summary info */}
-                 </div>
-             )}
-
-            {/* --- Basic Analysis Results --- */}
-            {wasSuccessful(dataset.basicAnalysis) && basicResults && (
-                <div className="result-section">
-                    <h5>Basic Analysis Results</h5>
-                    {basicResults.qc_plot_path && (
-                        <img src={getQCViolinPlotUrl(dataset.dataId)} alt="QC Violin Plot" className="result-plot" />
-                    )}
-                    {basicResults.umap_plot_path && (
-                        <img src={getUmapPlotUrl(dataset.dataId, clusterMethod)} alt={`UMAP by ${clusterMethod}`} className="result-plot" />
-                    )}
-                    {/* Add Marker Gene Table display here (maybe own component) */}
-                    {/* Add Gene Expression Plot component here */}
-                    {basicResults.processed_data_path && (
-                         <p><a href={getProcessedDataUrl(dataset.dataId)} download={`${dataset.dataId}_processed.h5ad`}>Download Processed Data</a></p>
-                    )}
-                     {basicResults.marker_genes_path && (
-                         <p><a href={getMarkerGenesUrl(dataset.dataId, clusterMethod, 'csv')} download={`marker_genes_${clusterMethod}.csv`}>Download Marker Genes (CSV)</a></p>
-                     )}
+            <div className="results-card">
+                <div className="results-header">
+                    <div>
+                        <h4>分析结果</h4>
+                        <p>各分析项结果按模块展示，包含可下载文件与图表。</p>
+                    </div>
                 </div>
-            )}
 
-             {/* --- RNA Velocity Results --- */}
-             {wasSuccessful(dataset.velocityAnalysis) && velocityResults && (
-                <div className="result-section">
-                     <h5>RNA Velocity Results (Mode: {velocityResults.velocity_calculated?.mode || 'N/A'})</h5>
-                      {!velocityResults.embedding_basis_found && <p><i>Warning: Embedding basis ('{velocityBasis}') not found in processed data; plots may be missing.</i></p>}
-                      {velocityResults.grid_plot_path && (
-                        <img src={getVelocityPlotUrl(dataset.dataId, velocityBasis, 'grid')} alt={`Velocity Grid (${velocityBasis})`} className="result-plot" />
-                     )}
-                       {velocityResults.stream_plot_path && (
-                        <img src={getVelocityPlotUrl(dataset.dataId, velocityBasis, 'stream')} alt={`Velocity Stream (${velocityBasis})`} className="result-plot" />
-                     )}
-                      {velocityResults.updated_adata_path && (
-                         <p><a href={getVelocityDataUrl(dataset.dataId)} download={`${dataset.dataId}_velocity.h5ad`}>Download Data w/ Velocity</a></p>
-                      )}
-                      {!velocityResults.grid_plot_path && !velocityResults.stream_plot_path && velocityResults.velocity_calculated && <p>Velocity calculated, but plots could not be generated (check embedding basis).</p>}
-                </div>
-             )}
+                {/* --- Integration Results --- */}
+                {dataset.isIntegrated && wasSuccessful(dataset.integrationAnalysis) && integrationResults && (
+                    <div className="result-section">
+                        <div className="section-head">
+                            <h5>整合结果（{integrationResults.integration_method}）</h5>
+                            <div className="section-actions">
+                                {integrationResults.integrated_data_path && (
+                                    <a className="ghost-link" href={getIntegratedDataUrl(dataset.dataId)} download={`${dataset.dataId}.h5ad`}>
+                                        下载整合数据
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        {integrationResults.umap_batch_plot_path && (
+                            <img src={getIntegratedUmapPlotUrl(dataset.dataId, 'batch')} alt="Integrated UMAP by Batch" className="result-plot" />
+                        )}
+                    </div>
+                )}
 
+                {/* --- Basic Analysis Results --- */}
+                {wasSuccessful(dataset.basicAnalysis) && basicResults && (
+                    <div className="result-section">
+                        <div className="section-head">
+                            <h5>基础分析结果</h5>
+                            <div className="section-actions">
+                                {basicResults.processed_data_path && (
+                                    <a className="ghost-link" href={getProcessedDataUrl(dataset.dataId)} download={`${dataset.dataId}_processed.h5ad`}>
+                                        下载处理后数据
+                                    </a>
+                                )}
+                                {basicResults.marker_genes_path && (
+                                    <a className="ghost-link" href={getMarkerGenesUrl(dataset.dataId, clusterMethod, 'csv')} download={`marker_genes_${clusterMethod}.csv`}>
+                                        下载 Marker 基因
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        <div className="plot-grid">
+                            {basicResults.qc_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getQCViolinPlotUrl(dataset.dataId)} alt="QC Violin Plot" className="result-plot" />
+                                    <span className="plot-caption">QC Violin</span>
+                                </div>
+                            )}
+                            {basicResults.umap_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getUmapPlotUrl(dataset.dataId, clusterMethod)} alt={`UMAP by ${clusterMethod}`} className="result-plot" />
+                                    <span className="plot-caption">UMAP ({clusterMethod})</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
-            {/* --- Trajectory Analysis Results --- */}
-             {wasSuccessful(dataset.trajectoryAnalysis) && trajectoryResults && (
-                <div className="result-section">
-                    <h5>Trajectory Analysis Results</h5>
-                    {trajectoryResults.diffmap_plot_path && (
-                        <img src={getDiffmapPlotUrl(dataset.dataId)} alt="Diffusion Map" className="result-plot" />
-                     )}
-                      {trajectoryResults.paga_graph_plot_path && (
-                        <img src={getPagaPlotUrl(dataset.dataId, 'graph')} alt="PAGA Graph" className="result-plot" />
-                     )}
-                       {trajectoryResults.paga_umap_plot_path && (
-                        <img src={getPagaPlotUrl(dataset.dataId, 'umap_embedding')} alt="PAGA on UMAP" className="result-plot" />
-                     )}
-                        {trajectoryResults.dpt_umap_plot_path && (
-                        <img src={getDptUmapPlotUrl(dataset.dataId)} alt="UMAP colored by DPT" className="result-plot" />
-                     )}
-                     {/* Display other trajectory info */}
-                </div>
-             )}
+                {/* --- RNA Velocity Results --- */}
+                {wasSuccessful(dataset.velocityAnalysis) && velocityResults && (
+                    <div className="result-section">
+                        <div className="section-head">
+                            <h5>RNA Velocity（模式：{velocityResults.velocity_calculated?.mode || 'N/A'}）</h5>
+                            <div className="section-actions">
+                                {velocityResults.updated_adata_path && (
+                                    <a className="ghost-link" href={getVelocityDataUrl(dataset.dataId)} download={`${dataset.dataId}_velocity.h5ad`}>
+                                        下载含 Velocity 的数据
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        {!velocityResults.embedding_basis_found && (
+                            <p className="hint-text">警告：未找到嵌入基准 '{velocityBasis}'，可能缺少相关图表。</p>
+                        )}
+                        <div className="plot-grid">
+                            {velocityResults.grid_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getVelocityPlotUrl(dataset.dataId, velocityBasis, 'grid')} alt={`Velocity Grid (${velocityBasis})`} className="result-plot" />
+                                    <span className="plot-caption">Grid Plot</span>
+                                </div>
+                            )}
+                            {velocityResults.stream_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getVelocityPlotUrl(dataset.dataId, velocityBasis, 'stream')} alt={`Velocity Stream (${velocityBasis})`} className="result-plot" />
+                                    <span className="plot-caption">Stream Plot</span>
+                                </div>
+                            )}
+                        </div>
+                        {!velocityResults.grid_plot_path && !velocityResults.stream_plot_path && velocityResults.velocity_calculated && (
+                            <p className="hint-text">已计算 velocity，但未生成图表（检查嵌入基准）。</p>
+                        )}
+                    </div>
+                )}
 
-             {/* --- Cell Communication Results --- */}
-             {wasSuccessful(dataset.communicationAnalysis) && commResults && (
-                <div className="result-section">
-                     <h5>Cell Communication Results (CellPhoneDB)</h5>
-                     {commResults.cpdb_output_dir && (
-                         <p><a href={getCellPhoneDbDownloadUrl(dataset.dataId)} download={`${dataset.dataId}_cellphonedb_results.zip`}>Download CellPhoneDB Results (.zip)</a></p>
-                     )}
-                     <p><i>Plots for CellPhoneDB need specific implementation based on output files.</i></p>
-                     {/* Example: If dot_plot.png is generated by backend task */}
-                     {/* <img src={getCellPhoneDbPlotUrl(dataset.dataId, 'dot_plot.png')} alt="CellPhoneDB Dot Plot" /> */}
-                     {/* Display stdout/stderr if needed for debugging? */}
-                     {/* {commResults.cellphonedb_stderr && <pre>Stderr: {commResults.cellphonedb_stderr}</pre>} */}
-                </div>
-             )}
+                {/* --- Trajectory Analysis Results --- */}
+                {wasSuccessful(dataset.trajectoryAnalysis) && trajectoryResults && (
+                    <div className="result-section">
+                        <div className="section-head">
+                            <h5>轨迹分析结果</h5>
+                        </div>
+                        <div className="plot-grid">
+                            {trajectoryResults.diffmap_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getDiffmapPlotUrl(dataset.dataId)} alt="Diffusion Map" className="result-plot" />
+                                    <span className="plot-caption">Diffmap</span>
+                                </div>
+                            )}
+                            {trajectoryResults.paga_graph_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getPagaPlotUrl(dataset.dataId, 'graph')} alt="PAGA Graph" className="result-plot" />
+                                    <span className="plot-caption">PAGA Graph</span>
+                                </div>
+                            )}
+                            {trajectoryResults.paga_umap_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getPagaPlotUrl(dataset.dataId, 'umap_embedding')} alt="PAGA on UMAP" className="result-plot" />
+                                    <span className="plot-caption">PAGA UMAP</span>
+                                </div>
+                            )}
+                            {trajectoryResults.dpt_umap_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getDptUmapPlotUrl(dataset.dataId)} alt="UMAP colored by DPT" className="result-plot" />
+                                    <span className="plot-caption">DPT UMAP</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
-            {/* Message if no results are available yet */}
-            {!wasSuccessful(dataset.basicAnalysis) && !wasSuccessful(dataset.integrationAnalysis) && !wasSuccessful(dataset.velocityAnalysis) && (
-                 <p>No analysis results available for this dataset yet. Run an analysis from Section 2.</p>
-             )}
-            {/* --- ATAC Analysis Results --- */}
-            {wasSuccessful(dataset.atacAnalysis) && atacResults && (
-                <div className="result-section">
-                    <h5>ATAC Analysis Results</h5>
-                    {atacResults.qc_plot_path && (
-                        <img src={getAtacQcPlotUrl(dataset.dataId)} alt="ATAC QC Violin Plot" className="result-plot" />
+                {/* --- Cell Communication Results --- */}
+                {wasSuccessful(dataset.communicationAnalysis) && commResults && (
+                    <div className="result-section">
+                        <div className="section-head">
+                            <h5>细胞通信 (CellPhoneDB)</h5>
+                            <div className="section-actions">
+                                {commResults.cpdb_output_dir && (
+                                    <a className="ghost-link" href={getCellPhoneDbDownloadUrl(dataset.dataId)} download={`${dataset.dataId}_cellphonedb_results.zip`}>
+                                        下载结果 (.zip)
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        <p className="hint-text">如需可视化，请根据 CellPhoneDB 输出文件补充相应展示。</p>
+                    </div>
+                )}
+
+                {/* --- ATAC Analysis Results --- */}
+                {wasSuccessful(dataset.atacAnalysis) && atacResults && (
+                    <div className="result-section">
+                        <div className="section-head">
+                            <h5>ATAC 分析结果</h5>
+                            <div className="section-actions">
+                                {atacResults.processed_adata_path && (
+                                    <a className="ghost-link" href={getProcessedAtacDataUrl(dataset.dataId)} download={`${dataset.dataId}_processed_atac.h5ad`}>
+                                        下载处理后 ATAC 数据
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        <div className="plot-grid">
+                            {atacResults.qc_plot_path && (
+                                <div className="plot-item">
+                                    <img src={getAtacQcPlotUrl(dataset.dataId)} alt="ATAC QC Violin Plot" className="result-plot" />
+                                    <span className="plot-caption">ATAC QC</span>
+                                </div>
+                            )}
+                            {atacResults.umap_cluster_plot_path && atacColorKey && (
+                                <div className="plot-item">
+                                    <img src={getAtacUmapPlotUrl(dataset.dataId, atacColorKey)} alt={`ATAC UMAP (${atacColorKey})`} className="result-plot" />
+                                    <span className="plot-caption">ATAC UMAP</span>
+                                </div>
+                            )}
+                        </div>
+                        {!atacResults.umap_cluster_plot_path && atacResults.umap_done && (
+                            <p className="hint-text">已生成 UMAP，但按簇上色可能失败。</p>
+                        )}
+                        {!atacResults.umap_done && (
+                            <p className="hint-text">未计算或生成 ATAC UMAP。</p>
+                        )}
+                        <ul className="meta-list">
+                            {atacResults.initial_shape && (
+                                <li>初始维度：{atacResults.initial_shape.obs} cells × {atacResults.initial_shape.var} features</li>
+                            )}
+                            {atacResults.shape_after_filtering && (
+                                <li>过滤后维度：{atacResults.shape_after_filtering.obs} × {atacResults.shape_after_filtering.var}</li>
+                            )}
+                            {atacResults.lsi_done && (
+                                <li>LSI 组件数：{atacResults.lsi_done.n_components_used}</li>
+                            )}
+                        </ul>
+                    </div>
+                )}
+
+                {/* Message if no results are available */}
+                {!wasSuccessful(dataset.basicAnalysis) &&
+                    !wasSuccessful(dataset.integrationAnalysis) &&
+                    !wasSuccessful(dataset.velocityAnalysis) &&
+                    !wasSuccessful(dataset.atacAnalysis) &&
+                    !wasSuccessful(dataset.communicationAnalysis) &&
+                    !wasSuccessful(dataset.trajectoryAnalysis) && (
+                        <p className="hint-text">暂未有结果，请在第 2 步运行分析任务。</p>
                     )}
-                    {atacResults.umap_cluster_plot_path && atacColorKey && ( // Use the specific path if available
-                        <img src={getAtacUmapPlotUrl(dataset.dataId, atacColorKey)} alt={`ATAC UMAP (${atacColorKey})`} className="result-plot" />
-                    )}
-                     {!atacResults.umap_cluster_plot_path && atacResults.umap_done && <p>ATAC UMAP plot generated but coloring by cluster might have failed.</p>}
-                     {!atacResults.umap_done && <p>ATAC UMAP was not calculated or failed.</p>}
-
-                    {atacResults.processed_adata_path && (
-                        <p><a href={getProcessedAtacDataUrl(dataset.dataId)} download={`${dataset.dataId}_processed_atac.h5ad`}>Download Processed ATAC Data</a></p>
-                    )}
-                    {/* Display other summary info like shapes, LSI components used */}
-                    <ul>
-                         {atacResults.initial_shape && <li>Initial Shape: {atacResults.initial_shape.obs} cells x {atacResults.initial_shape.var} features</li>}
-                         {atacResults.shape_after_filtering && <li>Shape after Filtering: {atacResults.shape_after_filtering.obs} x {atacResults.shape_after_filtering.var}</li>}
-                         {atacResults.lsi_done && <li>LSI Components Used: {atacResults.lsi_done.n_components_used}</li>}
-                    </ul>
-                </div>
-            )}
-
-            {/* ... No results message ... */}
+            </div>
         </div>
     );
 };

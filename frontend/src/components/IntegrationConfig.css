@@ -1,0 +1,156 @@
+.integration-config {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.integration-card {
+    width: 100%;
+    max-width: 720px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.integration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.integration-header h4 {
+    margin: 0;
+    font-size: 18px;
+    color: #111827;
+}
+
+.integration-header p {
+    margin: 4px 0 0 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.tag {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.tag-busy {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #fef3c7;
+}
+
+.tag-idle {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #e5e7eb;
+}
+
+.integration-empty {
+    margin-top: 8px;
+    padding: 14px;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #94a3b8;
+    border: 1px dashed #e2e8f0;
+}
+
+.integration-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #111827;
+    margin-top: 4px;
+}
+
+.dataset-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+}
+
+.dataset-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dataset-item:hover {
+    border-color: #3b82f6;
+    background: #f1f5f9;
+}
+
+.dataset-item input {
+    width: 16px;
+    height: 16px;
+}
+
+.dataset-name {
+    color: #111827;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.field-row label {
+    margin: 0;
+    font-weight: 600;
+    color: #111827;
+}
+
+.field-row input,
+.field-row select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-row input:focus,
+.field-row select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.field-row input:disabled,
+.field-row select:disabled {
+    background: #f3f4f6;
+    cursor: not-allowed;
+}
+
+.action-row {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.progress-wrapper {
+    margin-top: 4px;
+}
+

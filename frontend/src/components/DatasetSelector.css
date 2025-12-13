@@ -1,0 +1,39 @@
+.dataset-selector {
+    width: 100%;
+    padding: 10px 0;
+}
+
+.dataset-selector-empty {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.selector-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.selector-row label {
+    margin: 0;
+    font-weight: 600;
+    color: #111827;
+}
+
+.selector-row select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.selector-row select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+

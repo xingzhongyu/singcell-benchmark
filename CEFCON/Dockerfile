@@ -65,4 +65,4 @@ COPY . .
 RUN pip install .
 
 # Set a default command to start a bash session
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]

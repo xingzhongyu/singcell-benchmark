@@ -20,3 +20,6 @@ CPDB_DATABASE_PATH = os.getenv(
     # Replace with the actual path to your downloaded/unzipped DB directory
     BASE_DIR/"cellphonedb_data/v5.0.0/cellphonedb.zip"
 )
+
+# DeepSEM service base URL (for proxying requests to the dedicated container/service)
+DEEPSEM_BASE_URL = os.getenv("DEEPSEM_BASE_URL", "http://deepsem:8002")

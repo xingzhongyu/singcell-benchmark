@@ -1,7 +1,9 @@
 # === PyTorch Core ===
-torch==1.13.1
-torchaudio
-torchvision
+# Note: PyTorch is installed separately in Dockerfile with CUDA support
+# For local installation, uncomment the following lines:
+# torch==1.13.1
+# torchaudio==0.13.1
+# torchvision==0.14.1
 
 # === Core Data Science & ML ===
 arboreto==0.1.6

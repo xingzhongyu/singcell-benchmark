@@ -1,0 +1,146 @@
+.analysis-runner {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.analysis-card {
+    width: 100%;
+    max-width: 780px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.analysis-header h4 {
+    margin: 0;
+    color: #111827;
+}
+
+.analysis-header p {
+    margin: 4px 0 0 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.analysis-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.section-head h5 {
+    margin: 0;
+    color: #0f172a;
+}
+
+.section-head p {
+    margin: 4px 0 0 0;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.section-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ghost-btn {
+    padding: 9px 12px;
+    border-radius: 9px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ghost-btn:hover:enabled {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.ghost-btn:disabled {
+    color: #9ca3af;
+    border-color: #e5e7eb;
+    cursor: not-allowed;
+    background: #f8fafc;
+}
+
+.param-panel {
+    border: 1px dashed #dbeafe;
+    background: #f8fbff;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.field-row label {
+    margin: 0;
+    font-weight: 600;
+    color: #111827;
+}
+
+.field-row input[type="text"],
+.field-row input[type="number"],
+.field-row select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-row input[type="text"]:focus,
+.field-row input[type="number"]:focus,
+.field-row select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.field-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.hint-text {
+    color: #6b7280;
+    font-size: 13px;
+    margin: 0;
+}
+
+.error-message {
+    color: #b91c1c;
+    font-size: 13px;
+    margin: 0;
+}
+

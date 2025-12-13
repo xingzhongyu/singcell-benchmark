@@ -11,7 +11,7 @@ import {
 
 // Adjust if your backend runs on a different port or host
 // Use environment variables in a real app: process.env.REACT_APP_API_URL || 'http://localhost:8000/api'
-const API_BASE_URL = 'http://211.87.232.159:8000/api'; // Your backend API base URL
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://211.87.232.159:8000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
