@@ -36,22 +36,55 @@ async def start_rna_velocity_analysis(params: RnaVelocityParams):
 async def get_velocity_task_status(task_id: str):
     """ Checks the status of a submitted Celery RNA Velocity task. """
     task_result = AsyncResult(task_id, app=celery_app)
-    # Reuse status checking logic
-    status = task_result.status
+    
+    try:
+        status = task_result.status
+    except ValueError as e:
+        # Handle corrupted task metadata (e.g., missing exc_type in exception info)
+        # This can happen when task failure info is not properly serialized
+        return {
+            "task_id": task_id,
+            "status": "FAILURE",
+            "result": {
+                "error": "Task status corrupted",
+                "details": f"Unable to decode task status: {str(e)}. The task may have failed with improperly stored exception information."
+            }
+        }
+    
     result = None
-    if task_result.failed():
-        status = "FAILURE"
-        result = {"error": "Task failed", "details": str(task_result.info)}
-    elif task_result.successful():
-        status = "SUCCESS"
-        result = task_result.get()
-    elif status == 'PROGRESS':
-        result = task_result.info
-    elif status == 'STARTED':
-        result = task_result.info
-    elif status == 'PENDING':
-        result = {'status': 'Task is waiting'}
-    # ... handle other statuses ...
+    
+    try:
+        if task_result.failed():
+            status = "FAILURE"
+            try:
+                result = {"error": "Task failed", "details": str(task_result.info)}
+            except (ValueError, KeyError) as e:
+                # Handle case where exception info is corrupted
+                result = {
+                    "error": "Task failed",
+                    "details": f"Task failed but exception details could not be retrieved: {str(e)}"
+                }
+        elif task_result.successful():
+            status = "SUCCESS"
+            result = task_result.get()
+        elif status == 'PROGRESS':
+            result = task_result.info
+        elif status == 'STARTED':
+            result = task_result.info
+        elif status == 'PENDING':
+            result = {'status': 'Task is waiting'}
+        # ... handle other statuses ...
+    except (ValueError, KeyError) as e:
+        # Handle any other decoding errors when accessing task info
+        return {
+            "task_id": task_id,
+            "status": "FAILURE",
+            "result": {
+                "error": "Task metadata corrupted",
+                "details": f"Unable to decode task information: {str(e)}"
+            }
+        }
+    
     return {"task_id": task_id, "status": status, "result": result}
 
 

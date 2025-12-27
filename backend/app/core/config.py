@@ -23,3 +23,12 @@ CPDB_DATABASE_PATH = os.getenv(
 
 # DeepSEM service base URL (for proxying requests to the dedicated container/service)
 DEEPSEM_BASE_URL = os.getenv("DEEPSEM_BASE_URL", "http://deepsem:8002")
+
+# GRNBoost2 service base URL (for proxying requests to the dedicated container/service)
+GRNBOOST2_BASE_URL = os.getenv("GRNBOOST2_BASE_URL", "http://grnboost2:8003")
+
+# CEFCON service base URL (for proxying requests to the dedicated container/service)
+CEFCON_BASE_URL = os.getenv("CEFCON_BASE_URL", "http://cefcon:8004")
+
+# scDGRN service base URL (for proxying requests to the dedicated container/service)
+SCDGRN_BASE_URL = os.getenv("SCDGRN_BASE_URL", "http://scdgrn:8005")

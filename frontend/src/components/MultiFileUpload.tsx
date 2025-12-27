@@ -52,7 +52,7 @@ const MultiFileUpload: React.FC<MultiFileUploadProps> = ({ onFilesPrepared, uplo
             <div className="upload-card">
                 <div className="upload-header">
                     <div>
-                        <h3>批量上传 .h5ad</h3>
+                        <h3>批量上传文件</h3>
                         <p>为每个文件设定批次标签，支持多选添加。</p>
                     </div>
                     <span className={`upload-state ${isUploading ? 'state-uploading' : 'state-idle'}`}>
@@ -60,14 +60,13 @@ const MultiFileUpload: React.FC<MultiFileUploadProps> = ({ onFilesPrepared, uplo
                     </span>
                 </div>
 
-                <label htmlFor="file-input" className="file-dropzone" aria-label="选择 .h5ad 文件">
+                <label htmlFor="file-input" className="file-dropzone" aria-label="选择文件">
                     <div className="drop-main">选择或拖拽文件</div>
-                    <div className="drop-sub">仅支持 .h5ad，点击即可打开文件选择器</div>
+                    <div className="drop-sub">点击即可打开文件选择器</div>
             </label>
             <input
                 id="file-input"
                 type="file"
-                accept=".h5ad"
                 multiple
                 onChange={handleFileChange}
                 disabled={isUploading}
@@ -78,7 +77,7 @@ const MultiFileUpload: React.FC<MultiFileUploadProps> = ({ onFilesPrepared, uplo
 
                 {preparedFiles.length === 0 && (
                     <div className="empty-state">
-                        <span>暂无文件，请先选择或拖拽 .h5ad 文件。</span>
+                        <span>暂无文件，请先选择或拖拽文件。</span>
                     </div>
                 )}
 

@@ -1,0 +1,97 @@
+.grn-visualization-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.grn-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ddd;
+  align-items: center;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+}
+
+.control-group input[type="range"] {
+  width: 150px;
+}
+
+.control-group select {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.control-group button {
+  padding: 6px 12px;
+  border: 1px solid #4a90e2;
+  border-radius: 4px;
+  background: #4a90e2;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.control-group button:hover {
+  background: #357abd;
+}
+
+.weight-range {
+  font-size: 12px;
+  color: #666;
+  min-width: 120px;
+}
+
+.stats {
+  display: flex;
+  gap: 15px;
+  margin-left: auto;
+  font-size: 14px;
+  color: #666;
+}
+
+.stats span {
+  padding: 4px 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+}
+
+.grn-cytoscape-container {
+  width: 100%;
+  flex: 1;
+  min-height: 400px;
+  background: #fafafa;
+  border-top: 1px solid #eee;
+}
+
+/* Cytoscape 样式覆盖 */
+.grn-cytoscape-container canvas {
+  cursor: grab;
+}
+
+.grn-cytoscape-container canvas:active {
+  cursor: grabbing;
+}
+

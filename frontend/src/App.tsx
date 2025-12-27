@@ -9,6 +9,7 @@ import AnalysisRunner from './components/AnalysisRunner';
 import ResultsViewer from './components/ResultsViewer';
 import TaskProgress from './components/TaskProgress';
 import Sidebar from './components/Sidebar'; // <<< 1. 引入侧边栏组件
+import GRNInference from './components/GRNInference'; // <<< 添加 GRN 推断组件
 import './components/Sidebar.css';      // <<< 2. 引入侧边栏样式 (如果还没在 Sidebar.tsx 中引入)
 // API Service & Types
 import {
@@ -39,6 +40,7 @@ const defaultAtacParams: Omit<AtacAnalysisParameters, 'source_data_id'> = { // <
 };
 
 function App() {
+    const [activePage, setActivePage] = useState<'preprocessing' | 'grn'>('preprocessing');
     const [datasets, setDatasets] = useState<Record<string, AppDatasetState>>({});
     const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
     const [filesToUpload, setFilesToUpload] = useState<{ file: File, batchLabel: string, id: string }[]>([]);
@@ -146,14 +148,15 @@ function App() {
 
     // --- Effect to Manage Polling Intervals (Stable) ---
     useEffect(() => {
-        const analysisTypeKeys: (keyof Omit<AppDatasetState, 'dataId' | 'filename' | 'isIntegrated' | 'uploadTime' | 'sourceDataIds' | 'batchLabel'>)[] = [
+        const analysisTypeKeys: (keyof Omit<AppDatasetState, 'dataId' | 'filename' | 'isIntegrated' | 'uploadTime' | 'sourceDataIds' | 'batchLabel' | 'grnInference'>)[] = [
             'basicAnalysis', 'integrationAnalysis', 'trajectoryAnalysis', 'communicationAnalysis', 'velocityAnalysis', 'atacAnalysis'
         ];
 
         Object.entries(datasets).forEach(([dataId, datasetState]) => {
             analysisTypeKeys.forEach(analysisTypeKey => {
                 const analysisState = datasetState[analysisTypeKey];
-                if (analysisState?.taskId && analysisState.status && !['SUCCESS', 'FAILURE', 'REVOKED'].includes(analysisState.status.status)) {
+                // Type guard: ensure analysisState is DatasetAnalysisState (not grnInference)
+                if (analysisState && 'taskId' in analysisState && analysisState.taskId && analysisState.status && !['SUCCESS', 'FAILURE', 'REVOKED'].includes(analysisState.status.status)) {
                     const intervalKey = `${dataId}_${analysisTypeKey}_${analysisState.taskId}`;
                     if (!intervalRef.current[intervalKey]) {
                         pollTask(dataId, analysisTypeKey, analysisState.taskId); // Initial poll
@@ -161,15 +164,18 @@ function App() {
                              let isStillRelevant = false;
                              setDatasets(prev => { /* Check relevance safely */
                                 const currentDs = prev[dataId];
-                                if (currentDs && currentDs[analysisTypeKey]?.taskId === analysisState.taskId && !['SUCCESS', 'FAILURE', 'REVOKED'].includes(currentDs[analysisTypeKey]?.status?.status ?? '')) { isStillRelevant = true; }
+                                const currentAnalysisState = currentDs?.[analysisTypeKey];
+                                if (currentAnalysisState && 'taskId' in currentAnalysisState && currentAnalysisState.taskId === analysisState.taskId && !['SUCCESS', 'FAILURE', 'REVOKED'].includes(currentAnalysisState.status?.status ?? '')) { 
+                                    isStillRelevant = true; 
+                                }
                                 return prev;
                              });
-                             if (isStillRelevant) { pollTask(dataId, analysisTypeKey, analysisState.taskId!); }
+                             if (isStillRelevant) { pollTask(dataId, analysisTypeKey, analysisState.taskId); }
                              else { stopPolling(intervalKey); }
                         }, 7000);
                          intervalRef.current = { ...intervalRef.current, [intervalKey]: intervalId };
                     }
-                } else if (analysisState?.taskId) { // Cleanup check
+                } else if (analysisState && 'taskId' in analysisState && analysisState.taskId) { // Cleanup check
                     const intervalKey = `${dataId}_${analysisTypeKey}_${analysisState.taskId}`;
                     if (intervalRef.current[intervalKey] && analysisState.status && ['SUCCESS', 'FAILURE', 'REVOKED'].includes(analysisState.status.status)) {
                          stopPolling(intervalKey);
@@ -307,42 +313,65 @@ function App() {
     ).reduce((acc, ds) => { acc[ds.dataId] = ds; return acc; }, {} as Record<string, AppDatasetState>);
 
 
+    // 预处理页面内容
+    const renderPreprocessingPage = () => (
+        <>
+            {globalError && <p className="global-error">Error: {globalError}</p>}
+            <section className="app-section">
+                <h3>1. Upload & Integrate Data</h3>
+                <MultiFileUpload onFilesPrepared={handleFilesPrepared} uploadProgress={uploadProgress} isUploading={isUploading}/>
+                <button
+                    className="primary-action-btn"
+                    onClick={handleConfirmUploads}
+                    disabled={filesToUpload.length === 0 || isUploading}
+                >
+                    <span className="btn-label">{isUploading ? '上传中…' : `上传 ${filesToUpload.length} 个文件`}</span>
+                </button>
+                <IntegrationConfig availableDatasets={Object.values(datasets).filter(d => !d.isIntegrated)} onStartIntegration={handleStartIntegration} activeIntegrationTask={Object.values(datasets).find(d => d.isIntegrated && d.integrationAnalysis && !['SUCCESS', 'FAILURE'].includes(d.integrationAnalysis.status?.status ?? ''))?.integrationAnalysis}/>
+            </section>
+
+            {Object.keys(selectableDatasets).length > 0 && (
+                <section className="app-section">
+                    <hr /><h3>2. Select Dataset & Analyze</h3>
+                    <DatasetSelector datasets={selectableDatasets} onSelect={handleDatasetSelect} selectedId={selectedDataId} />
+                    {selectedDataset && ( <AnalysisRunner dataset={selectedDataset} onRunAnalysis={handleRunAnalysis} defaultParams={{ basic: defaultBasicParams, trajectory: defaultTrajectoryParams, communication: defaultCommunicationParams, velocity: defaultVelocityParams,atac:defaultAtacParams}}/> )}
+                </section>
+            )}
+
+            {selectedDataset && (
+                <section className="app-section">
+                    <hr /><h3>3. Results for Dataset: {selectedDataset.filename || selectedDataId} {selectedDataset.isIntegrated ? '(Integrated)' : ''}</h3>
+                    <ResultsViewer dataset={selectedDataset} />
+                </section>
+            )}
+            
+            {Object.keys(datasets).length === 0 && !isUploading && filesToUpload.length === 0 && (
+                <p>Upload one or more .h5ad files to begin.</p>
+            )}
+        </>
+    );
+
+    // GRN 推断页面内容
+    const renderGRNPage = () => (
+        <section className="app-section">
+            <h2>基因调控网络推断 (GRN)</h2>
+            <p>使用 DeepSEM 算法推断基因调控网络</p>
+            <GRNInference onResultsReady={(results) => {
+                console.log('GRN 推断完成:', results);
+                // 可以在这里保存结果到状态中
+            }} />
+        </section>
+    );
+
     return (
         <div className="App">
             <header className="App-header"><h1>Single Cell Multi-Analysis App</h1></header>
             <div className="app-body"> 
-            <Sidebar />
-            <main className="main-content">
-                {globalError && <p className="global-error">Error: {globalError}</p>}
-                <section className="app-section">
-                    <h3>1. Upload & Integrate Data</h3>
-                    <MultiFileUpload onFilesPrepared={handleFilesPrepared} uploadProgress={uploadProgress} isUploading={isUploading}/>
-                    <button
-                        className="primary-action-btn"
-                        onClick={handleConfirmUploads}
-                        disabled={filesToUpload.length === 0 || isUploading}
-                    >
-                        <span className="btn-label">{isUploading ? '上传中…' : `上传 ${filesToUpload.length} 个文件`}</span>
-                    </button>
-                    <IntegrationConfig availableDatasets={Object.values(datasets).filter(d => !d.isIntegrated)} onStartIntegration={handleStartIntegration} activeIntegrationTask={Object.values(datasets).find(d => d.isIntegrated && d.integrationAnalysis && !['SUCCESS', 'FAILURE'].includes(d.integrationAnalysis.status?.status ?? ''))?.integrationAnalysis}/>
-                </section>
-
-                 {Object.keys(selectableDatasets).length > 0 && (
-                    <section className="app-section">
-                        <hr /><h3>2. Select Dataset & Analyze</h3>
-                        <DatasetSelector datasets={selectableDatasets} onSelect={handleDatasetSelect} selectedId={selectedDataId} />
-                        {selectedDataset && ( <AnalysisRunner dataset={selectedDataset} onRunAnalysis={handleRunAnalysis} defaultParams={{ basic: defaultBasicParams, trajectory: defaultTrajectoryParams, communication: defaultCommunicationParams, velocity: defaultVelocityParams,atac:defaultAtacParams}}/> )}
-                    </section>
-                 )}
-
-                {selectedDataset && (
-                    <section className="app-section">
-                        <hr /><h3>3. Results for Dataset: {selectedDataset.filename || selectedDataId} {selectedDataset.isIntegrated ? '(Integrated)' : ''}</h3>
-                        <ResultsViewer dataset={selectedDataset} />
-                    </section>
-                 )}
-                 {Object.keys(datasets).length === 0 && !isUploading && filesToUpload.length === 0 && (<p>Upload one or more .h5ad files to begin.</p>)}
-            </main>
+                <Sidebar activePage={activePage} onPageChange={setActivePage} />
+                <main className="main-content">
+                    {activePage === 'preprocessing' && renderPreprocessingPage()}
+                    {activePage === 'grn' && renderGRNPage()}
+                </main>
             </div>
         </div>
     );

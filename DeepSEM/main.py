@@ -102,21 +102,47 @@ def perform_deepsem_inference(
                 model.train_model()
             
             # 5. 读取模型生成的输出文件
-            # 假设模型在 save_name 目录下生成了一个名为 'W.csv' 的文件，代表推断出的网络权重矩阵
-            # 如果文件名不同，请修改此处
-            output_file_path = os.path.join(result_dir_path, 'W.csv')
-            if not os.path.exists(output_file_path):
-                 raise FileNotFoundError(f"模型未在指定位置生成输出文件: {output_file_path}")
-
-            result_matrix = pd.read_csv(output_file_path, index_col=0)
-            
-            # 6. 将权重矩阵转换为边列表 (source, target, weight)
-            result_df = result_matrix.stack().reset_index()
-            result_df.columns = ['source', 'target', 'weight']
-            # 移除权重为0的边以减小输出大小
-            result_df = result_df[result_df['weight'] != 0].copy()
-
-            return result_df
+            # 根据任务类型，模型会生成不同格式的输出文件
+            if opt.task in ['non_celltype_GRN', 'celltype_GRN']:
+                # GRN 推断任务生成的是边列表格式的 TSV 文件
+                output_file_path = os.path.join(result_dir_path, 'GRN_inference_result.tsv')
+                if not os.path.exists(output_file_path):
+                    # 列出目录中的文件以便调试
+                    existing_files = os.listdir(result_dir_path) if os.path.exists(result_dir_path) else []
+                    print(f"错误：期望的文件不存在: {output_file_path}")
+                    print(f"结果目录中的文件: {existing_files}")
+                    raise FileNotFoundError(f"模型未在指定位置生成输出文件: {output_file_path}。目录中的文件: {existing_files}")
+                
+                # 读取 TSV 格式的边列表（列：TF, Target, EdgeWeight）
+                result_df = pd.read_csv(output_file_path, sep='\t')
+                
+                # 重命名列以匹配 API 返回格式
+                result_df = result_df.rename(columns={
+                    'TF': 'source',
+                    'Target': 'target',
+                    'EdgeWeight': 'weight'
+                })
+                
+                # 移除权重为0的边以减小输出大小
+                result_df = result_df[result_df['weight'] != 0].copy()
+                
+                return result_df
+            elif opt.task == 'simulation':
+                # 模拟任务生成的是 h5ad 文件，需要特殊处理
+                output_file_path = os.path.join(result_dir_path, 'simulation_reusult.h5ad')
+                if not os.path.exists(output_file_path):
+                    raise FileNotFoundError(f"模型未在指定位置生成输出文件: {output_file_path}")
+                # TODO: 处理 h5ad 文件格式（如果需要返回模拟数据）
+                raise NotImplementedError("simulation 任务的输出格式暂未实现")
+            elif opt.task == 'embedding':
+                # 嵌入任务生成的是 h5ad 文件，需要特殊处理
+                output_file_path = os.path.join(result_dir_path, 'embedding.h5ad')
+                if not os.path.exists(output_file_path):
+                    raise FileNotFoundError(f"模型未在指定位置生成输出文件: {output_file_path}")
+                # TODO: 处理 h5ad 文件格式（如果需要返回嵌入向量）
+                raise NotImplementedError("embedding 任务的输出格式暂未实现")
+            else:
+                raise ValueError(f"未知的任务类型: {opt.task}")
 
         except Exception as e:
             # --- 修改后的部分 ---

@@ -70,13 +70,33 @@ async def proxy_deepsem_infer_grn(
         )
 
     try:
-        async with httpx.AsyncClient(timeout=180.0) as client:
+        print(f"正在连接 DeepSEM 服务: {DEEPSEM_BASE_URL}/infer-grn/")
+        # 增加超时时间到 50 分钟（3000秒），因为 GRN 推断可能需要较长时间
+        timeout = httpx.Timeout(3000.0, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(f"{DEEPSEM_BASE_URL}/infer-grn/", data=data, files=files)
+            print(f"DeepSEM 服务响应状态码: {resp.status_code}")
+    except httpx.ConnectError as e:
+        error_msg = f"无法连接到 DeepSEM 服务 ({DEEPSEM_BASE_URL}): {str(e)}"
+        print(f"连接错误: {error_msg}")
+        raise HTTPException(status_code=502, detail=error_msg)
+    except httpx.TimeoutException as e:
+        error_msg = f"连接 DeepSEM 服务超时: {str(e)}"
+        print(f"超时错误: {error_msg}")
+        raise HTTPException(status_code=504, detail=error_msg)
     except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"无法连接 DeepSEM 服务: {e}")
+        error_msg = f"请求 DeepSEM 服务时发生错误: {str(e)}"
+        print(f"请求错误: {error_msg}")
+        raise HTTPException(status_code=502, detail=error_msg)
+    except Exception as e:
+        error_msg = f"未知错误: {str(e)}"
+        print(f"未知错误: {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
     if resp.status_code >= 400:
-        raise HTTPException(status_code=resp.status_code, detail=f"DeepSEM 服务错误: {resp.text}")
+        error_detail = resp.text if hasattr(resp, 'text') else str(resp.content)
+        print(f"DeepSEM 服务返回错误 (状态码 {resp.status_code}): {error_detail}")
+        raise HTTPException(status_code=resp.status_code, detail=f"DeepSEM 服务错误: {error_detail}")
 
     return resp.json()
 

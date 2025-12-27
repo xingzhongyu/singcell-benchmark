@@ -275,6 +275,44 @@ export interface DatasetAnalysisState {
   error?: string | null;
 }
 
+// --- GRN Inference (DeepSEM) ---
+export interface GRNEdge {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface DeepSEMParameters {
+  task: 'celltype_GRN' | 'non_celltype_GRN' | 'simulation' | 'embedding';
+  setting: 'default' | 'test';
+  n_epochs: number;
+  batch_size: number;
+  alpha: number;
+  beta: number;
+  lr: number;
+  n_hidden: number;
+  K: number;
+  K1: number;
+  K2: number;
+  gamma: number;
+  lr_step_size: number;
+}
+
+export interface GRNBoost2Parameters {
+  algorithm: 'genie3' | 'grnboost2';
+}
+
+export interface GRNInferenceResults {
+  edges: GRNEdge[];
+  nodeCount: number;
+  edgeCount: number;
+}
+
+export interface ScDGRNInferenceResults {
+  timePoints: Record<string, GRNEdge[]>;
+  selectedTimePoint?: string;
+}
+
 export interface AppDatasetState {
   dataId: string; // Original or Integrated Data ID
   filename?: string; // Original filename if applicable
@@ -290,5 +328,9 @@ export interface AppDatasetState {
   sourceDataIds?: string[];
   batchLabel?:string;
   atacAnalysis?: DatasetAnalysisState; // Add state for ATAC analysis
+  grnInference?: {
+    results?: GRNInferenceResults;
+    parameters?: DeepSEMParameters;
+  };
 }
 

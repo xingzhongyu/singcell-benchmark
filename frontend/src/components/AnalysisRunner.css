@@ -91,7 +91,26 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
+    gap: 16px;
+}
+
+.param-group {
+    border: 1px solid #e0e7ff;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
+}
+
+.param-group h6 {
+    margin: 0 0 8px 0;
+    color: #1e40af;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid #e0e7ff;
+    padding-bottom: 6px;
 }
 
 .field-row {
@@ -128,8 +147,17 @@
 }
 
 .field-row input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.field-row label:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    cursor: pointer;
 }
 
 .hint-text {

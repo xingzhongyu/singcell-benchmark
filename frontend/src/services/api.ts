@@ -6,7 +6,8 @@ import {
     IntegrationParameters, TrajectoryParameters, CellCommunicationParameters,
     IntegrationResultsSummary, TrajectoryResultsSummary, CellCommunicationResultsSummary, AppDatasetState, // Add AppDatasetState if used for complex state
     RnaVelocityParameters,
-    AtacAnalysisParameters
+    AtacAnalysisParameters,
+    GRNEdge, DeepSEMParameters
 } from '../types';
 
 // Adjust if your backend runs on a different port or host
@@ -297,4 +298,157 @@ export const getAtacQcPlotUrl = (sourceDataId: string): string => {
 export const getProcessedAtacDataUrl = (sourceDataId: string): string => {
     if (!sourceDataId) return "";
     return `${API_BASE_URL}/atac/results/${sourceDataId}/processed_atac_data`;
+};
+
+// --- GRN Inference (DeepSEM) ---
+export const inferGRN = async (
+    expressionFile: File,
+    networkFile: File | null,
+    parameters: DeepSEMParameters
+): Promise<GRNEdge[]> => {
+    const formData = new FormData();
+    formData.append('expression_file', expressionFile);
+    if (networkFile) {
+        formData.append('network_file', networkFile);
+    }
+    
+    // Append all parameters as form fields
+    Object.entries(parameters).forEach(([key, value]) => {
+        formData.append(key, String(value));
+    });
+
+    try {
+        const response = await apiClient.post('/deepsem/infer-grn/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 300000, // 5 minutes timeout for long-running inference
+        });
+        return response.data as GRNEdge[];
+    } catch (error) {
+        console.error("GRN inference error:", error);
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+                // 服务器返回了响应，但有错误状态码
+                const errorDetail = error.response.data?.detail || error.response.data?.message || error.response.statusText || 'GRN 推断失败';
+                throw new Error(errorDetail);
+            } else if (error.request) {
+                // 请求已发出，但没有收到响应
+                throw new Error('无法连接到服务器，请检查网络连接或稍后重试');
+            } else {
+                // 请求配置出错
+                throw new Error(error.message || '请求配置错误');
+            }
+        }
+        throw new Error(error instanceof Error ? error.message : 'GRN 推断失败，未知错误');
+    }
+};
+
+// --- GRN Inference (GRNBoost2/Genie3) ---
+export const inferGRNWithGRNBoost2 = async (
+    expressionFile: File,
+    tfFile: File,
+    algorithm: 'genie3' | 'grnboost2'
+): Promise<GRNEdge[]> => {
+    const formData = new FormData();
+    formData.append('expression_file', expressionFile);
+    formData.append('tf_file', tfFile);
+
+    try {
+        const response = await apiClient.post(`/grnboost2/infer-grn/${algorithm}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 300000, // 5 minutes timeout for long-running inference
+        });
+        
+        // GRNBoost2 返回的格式是 {TF, target, importance}，需要转换为 {source, target, weight}
+        const data = response.data as Array<{TF: string, target: string, importance: number}>;
+        return data.map(item => ({
+            source: item.TF,
+            target: item.target,
+            weight: item.importance
+        }));
+    } catch (error) {
+        console.error("GRNBoost2 inference error:", error);
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+                const errorDetail = error.response.data?.detail || error.response.data?.message || error.response.statusText || 'GRN 推断失败';
+                throw new Error(errorDetail);
+            } else if (error.request) {
+                throw new Error('无法连接到服务器，请检查网络连接或稍后重试');
+            } else {
+                throw new Error(error.message || '请求配置错误');
+            }
+        }
+        throw new Error(error instanceof Error ? error.message : 'GRN 推断失败，未知错误');
+    }
+};
+
+// --- GRN Inference (CEFCON) ---
+export const inferGRNWithCEFCON = async (
+    expressionFile: File
+): Promise<GRNEdge[]> => {
+    const formData = new FormData();
+    formData.append('expression_file', expressionFile);
+
+    try {
+        const response = await apiClient.post('/cefcon/infer-grn/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 3000000, // 50 minutes timeout for long-running inference
+        });
+        
+        // CEFCON 返回的格式已经是 {source, target, weight}，直接返回
+        return response.data as GRNEdge[];
+    } catch (error) {
+        console.error("CEFCON inference error:", error);
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+                const errorDetail = error.response.data?.detail || error.response.data?.message || error.response.statusText || 'GRN 推断失败';
+                throw new Error(errorDetail);
+            } else if (error.request) {
+                throw new Error('无法连接到服务器，请检查网络连接或稍后重试');
+            } else {
+                throw new Error(error.message || '请求配置错误');
+            }
+        }
+        throw new Error(error instanceof Error ? error.message : 'GRN 推断失败，未知错误');
+    }
+};
+
+// --- GRN Inference (scDGRN) ---
+export const inferGRNWithScDGRN = async (
+    expressionZip: File
+): Promise<Record<string, GRNEdge[]>> => {
+    const formData = new FormData();
+    formData.append('expression_zip', expressionZip);
+
+    try {
+        const response = await apiClient.post('/scdgrn/infer-grn-with-training/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 3000000, // 50 minutes timeout for long-running inference
+        });
+        
+        // scDGRN 返回的格式是 {t1: [{TF, Target, score}], t2: [...], ...}
+        // 需要转换为 {t1: [{source, target, weight}], t2: [...], ...}
+        const result: Record<string, GRNEdge[]> = {};
+        Object.keys(response.data).forEach(timePoint => {
+            const data = response.data[timePoint] as Array<{TF: string | number, Target: string | number, score: number}>;
+            result[timePoint] = data.map(item => ({
+                source: String(item.TF),
+                target: String(item.Target),
+                weight: item.score
+            }));
+        });
+        return result;
+    } catch (error) {
+        console.error("scDGRN inference error:", error);
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+                const errorDetail = error.response.data?.detail || error.response.data?.message || error.response.statusText || 'GRN 推断失败';
+                throw new Error(errorDetail);
+            } else if (error.request) {
+                throw new Error('无法连接到服务器，请检查网络连接或稍后重试');
+            } else {
+                throw new Error(error.message || '请求配置错误');
+            }
+        }
+        throw new Error(error instanceof Error ? error.message : 'GRN 推断失败，未知错误');
+    }
 };

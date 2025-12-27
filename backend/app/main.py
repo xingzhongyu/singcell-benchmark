@@ -7,6 +7,9 @@ import uvicorn
 from .routers import data, analysis
 from .routers import integration, trajectory, communication,velocity,atac # NEW
 from .routers import deepsem  # Proxy to DeepSEM service
+from .routers import grnboost2  # Proxy to GRNBoost2 service
+from .routers import cefcon  # Proxy to CEFCON service
+from .routers import scdgrn  # Proxy to scDGRN service
 
 app = FastAPI(title="Scanpy Multi-Modal Analysis API")
 
@@ -18,7 +21,8 @@ origins = [
     "http://localhost:3002",
     "http://127.0.0.1:3002",
     "http://211.87.232.159:3002", # Your frontend origin
-    "http://sdu-159:3002"
+    "http://sdu-159:3002",
+    "http://sdu-112:3002"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +41,9 @@ app.include_router(trajectory.router, prefix="/api/trajectory", tags=["Trajector
 app.include_router(communication.router, prefix="/api/communication", tags=["Cell Communication Tasks"]) # NEW
 app.include_router(velocity.router, prefix="/api/velocity", tags=["RNA Velocity Tasks"]) # NEW
 app.include_router(deepsem.router, prefix="/api/deepsem", tags=["DeepSEM GRN"])
+app.include_router(grnboost2.router, prefix="/api/grnboost2", tags=["GRNBoost2/Genie3 GRN"])
+app.include_router(cefcon.router, prefix="/api/cefcon", tags=["CEFCON GRN"])
+app.include_router(scdgrn.router, prefix="/api/scdgrn", tags=["scDGRN Dynamic GRN"])
 
 
 # --- Root Endpoint --- (Keep existing)

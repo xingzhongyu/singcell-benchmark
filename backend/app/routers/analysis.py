@@ -34,24 +34,55 @@ async def get_task_status(task_id: str = FastApiPath(..., description="ID of the
     """
     task_result = AsyncResult(task_id, app=celery_app)
 
-    status = task_result.status
+    try:
+        status = task_result.status
+    except ValueError as e:
+        # Handle corrupted task metadata (e.g., missing exc_type in exception info)
+        # This can happen when task failure info is not properly serialized
+        return {
+            "task_id": task_id,
+            "status": "FAILURE",
+            "result": {
+                "error": "Task status corrupted",
+                "details": f"Unable to decode task status: {str(e)}. The task may have failed with improperly stored exception information."
+            }
+        }
+
     result = None
 
-    if task_result.failed():
-        status = "FAILURE" # Be explicit
-        result = {
-            "error": "Task failed",
-            "details": str(task_result.info) # Get traceback/exception info
+    try:
+        if task_result.failed():
+            status = "FAILURE" # Be explicit
+            try:
+                result = {
+                    "error": "Task failed",
+                    "details": str(task_result.info) # Get traceback/exception info
+                }
+            except (ValueError, KeyError) as e:
+                # Handle case where exception info is corrupted
+                result = {
+                    "error": "Task failed",
+                    "details": f"Task failed but exception details could not be retrieved: {str(e)}"
+                }
+        elif task_result.successful():
+             status = "SUCCESS"
+             result = task_result.get() # Get the return value of the task
+        elif status == 'PENDING':
+             result = {'status': 'Task is waiting to be processed'}
+        elif status == 'STARTED':
+             result = task_result.info # Get meta data if set by update_state
+        elif status == 'PROGRESS':
+             result = task_result.info # Get meta data from update_state
+    except (ValueError, KeyError) as e:
+        # Handle any other decoding errors when accessing task info
+        return {
+            "task_id": task_id,
+            "status": "FAILURE",
+            "result": {
+                "error": "Task metadata corrupted",
+                "details": f"Unable to decode task information: {str(e)}"
             }
-    elif task_result.successful():
-         status = "SUCCESS"
-         result = task_result.get() # Get the return value of the task
-    elif status == 'PENDING':
-         result = {'status': 'Task is waiting to be processed'}
-    elif status == 'STARTED':
-         result = task_result.info # Get meta data if set by update_state
-    elif status == 'PROGRESS':
-         result = task_result.info # Get meta data from update_state
+        }
 
     # Ensure result is JSON serializable if it's not already handled
     # (Celery usually handles basic types, dicts, lists)

@@ -133,27 +133,236 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ dataset, onRunAnalysis,
                     )}
                     {showParams.basic && (
                         <div className="param-panel">
-                            <div className="field-row">
-                                <label>每细胞最少基因数</label>
-                                <input
-                                    type="number"
-                                    name="min_genes_after_qc"
-                                    value={basicParams.min_genes_after_qc ?? ''}
-                                    onChange={(e) => handleParamChange(setBasicParams, e)}
-                                />
+                            {/* QC 参数 */}
+                            <div className="param-group">
+                                <h6>质量控制 (QC)</h6>
+                                <div className="field-row">
+                                    <label>线粒体基因前缀</label>
+                                    <input
+                                        type="text"
+                                        name="mito_prefix"
+                                        value={basicParams.mito_prefix}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                        placeholder="MT-"
+                                    />
+                                </div>
+                                <div className="field-row">
+                                    <label>每细胞最少基因数</label>
+                                    <input
+                                        type="number"
+                                        name="min_genes_after_qc"
+                                        value={basicParams.min_genes_after_qc ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                                <div className="field-row">
+                                    <label>每基因最少细胞数</label>
+                                    <input
+                                        type="number"
+                                        name="min_cells_after_qc"
+                                        value={basicParams.min_cells_after_qc ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
                             </div>
-                            <div className="field-row">
-                                <label>聚类算法</label>
-                                <select
-                                    name="clustering_method"
-                                    value={basicParams.clustering_method}
-                                    onChange={e => handleParamChange(setBasicParams, e)}
-                                >
-                                    <option value="leiden">Leiden</option>
-                                    <option value="louvain">Louvain</option>
-                                </select>
+
+                            {/* HVG 参数 */}
+                            <div className="param-group">
+                                <h6>高变基因选择 (HVG)</h6>
+                                <div className="field-row">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            name="select_hvgs"
+                                            checked={basicParams.select_hvgs}
+                                            onChange={(e) => handleParamChange(setBasicParams, e)}
+                                        />
+                                        选择高变基因
+                                    </label>
+                                </div>
+                                {basicParams.select_hvgs && (
+                                    <>
+                                        <div className="field-row">
+                                            <label>最小平均表达量</label>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                name="hvg_min_mean"
+                                                value={basicParams.hvg_min_mean ?? ''}
+                                                onChange={(e) => handleParamChange(setBasicParams, e)}
+                                            />
+                                        </div>
+                                        <div className="field-row">
+                                            <label>最大平均表达量</label>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                name="hvg_max_mean"
+                                                value={basicParams.hvg_max_mean ?? ''}
+                                                onChange={(e) => handleParamChange(setBasicParams, e)}
+                                            />
+                                        </div>
+                                        <div className="field-row">
+                                            <label>最小离散度</label>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                name="hvg_min_disp"
+                                                value={basicParams.hvg_min_disp ?? ''}
+                                                onChange={(e) => handleParamChange(setBasicParams, e)}
+                                            />
+                                        </div>
+                                        <div className="field-row">
+                                            <label>Top N 基因数（可选，覆盖均值/离散度）</label>
+                                            <input
+                                                type="number"
+                                                name="hvg_n_top_genes"
+                                                value={basicParams.hvg_n_top_genes ?? ''}
+                                                onChange={(e) => handleParamChange(setBasicParams, e)}
+                                                placeholder="留空使用均值/离散度"
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                            {/* 可按需补充更多基础参数 */}
+
+                            {/* 标准化参数 */}
+                            <div className="param-group">
+                                <h6>标准化</h6>
+                                <div className="field-row">
+                                    <label>标准化目标总和（留空跳过）</label>
+                                    <input
+                                        type="number"
+                                        name="normalize_target_sum"
+                                        value={basicParams.normalize_target_sum ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                        placeholder="如：10000"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* PCA 参数 */}
+                            <div className="param-group">
+                                <h6>主成分分析 (PCA)</h6>
+                                <div className="field-row">
+                                    <label>主成分数量</label>
+                                    <input
+                                        type="number"
+                                        name="pca_n_comps"
+                                        value={basicParams.pca_n_comps ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 邻居图参数 */}
+                            <div className="param-group">
+                                <h6>邻居图构建</h6>
+                                <div className="field-row">
+                                    <label>用于邻居计算的PC数</label>
+                                    <input
+                                        type="number"
+                                        name="neighbors_n_pcs"
+                                        value={basicParams.neighbors_n_pcs ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                                <div className="field-row">
+                                    <label>邻居数量</label>
+                                    <input
+                                        type="number"
+                                        name="neighbors_n_neighbors"
+                                        value={basicParams.neighbors_n_neighbors ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* UMAP 参数 */}
+                            <div className="param-group">
+                                <h6>UMAP 降维</h6>
+                                <div className="field-row">
+                                    <label>最小距离</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        name="umap_min_dist"
+                                        value={basicParams.umap_min_dist ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                                <div className="field-row">
+                                    <label>扩散范围</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        name="umap_spread"
+                                        value={basicParams.umap_spread ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 聚类参数 */}
+                            <div className="param-group">
+                                <h6>聚类</h6>
+                                <div className="field-row">
+                                    <label>聚类算法</label>
+                                    <select
+                                        name="clustering_method"
+                                        value={basicParams.clustering_method}
+                                        onChange={e => handleParamChange(setBasicParams, e)}
+                                    >
+                                        <option value="leiden">Leiden</option>
+                                        <option value="louvain">Louvain</option>
+                                    </select>
+                                </div>
+                                <div className="field-row">
+                                    <label>Leiden 分辨率</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        name="leiden_resolution"
+                                        value={basicParams.leiden_resolution ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                                <div className="field-row">
+                                    <label>Louvain 分辨率</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        name="louvain_resolution"
+                                        value={basicParams.louvain_resolution ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Marker 基因参数 */}
+                            <div className="param-group">
+                                <h6>Marker 基因检测</h6>
+                                <div className="field-row">
+                                    <label>检测方法</label>
+                                    <select
+                                        name="marker_gene_method"
+                                        value={basicParams.marker_gene_method}
+                                        onChange={e => handleParamChange(setBasicParams, e)}
+                                    >
+                                        <option value="wilcoxon">Wilcoxon</option>
+                                        <option value="t-test">t-test</option>
+                                    </select>
+                                </div>
+                                <div className="field-row">
+                                    <label>每个聚类报告的基因数</label>
+                                    <input
+                                        type="number"
+                                        name="marker_gene_n_genes"
+                                        value={basicParams.marker_gene_n_genes ?? ''}
+                                        onChange={(e) => handleParamChange(setBasicParams, e)}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

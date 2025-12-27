@@ -1,15 +1,97 @@
 # backend/app/tasks/velocity_tasks.py
+import os
+import uuid
+import traceback
+import multiprocessing
+import threading
+from queue import Queue
+from pathlib import Path
+
+# CRITICAL: Patch multiprocessing.Manager BEFORE importing scvelo
+# This prevents "daemonic processes are not allowed to have children" errors
+# Celery workers run as daemon processes, which cannot spawn child processes
+# scvelo calls Manager().Queue() directly, so we must patch it before scvelo imports
+
+_original_manager = multiprocessing.Manager
+
+class ThreadingManager:
+    """A threading-based replacement for multiprocessing.Manager to work in Celery daemon processes."""
+    def __init__(self):
+        self._started = True
+    
+    def Queue(self):
+        return Queue()
+    
+    def start(self):
+        self._started = True
+    
+    def shutdown(self):
+        pass  # No-op for threading
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args):
+        self.shutdown()
+
+def _patched_manager(*args, **kwargs):
+    """Return a threading-based manager instead of multiprocessing manager."""
+    return ThreadingManager()
+
+# Monkey-patch multiprocessing.Manager to use threading in Celery workers
+multiprocessing.Manager = _patched_manager
+
+# Now import scvelo and other packages after patching
 import scanpy as sc
 import scvelo as scv
 import anndata as ad
-import os
-import uuid
 import matplotlib.pyplot as plt
-from pathlib import Path
-import traceback
 
 from ..core.config import UPLOAD_DIR_STR, RESULT_DIR_STR
 from celery_app import celery_app
+
+# Also patch scvelo's parallelize function if available
+try:
+    from scvelo.core import _parallelize
+    
+    # Store the original parallelize function
+    _original_parallelize = _parallelize.parallelize
+    
+    def _patched_parallelize(*args, **kwargs):
+        """
+        Patched version of scvelo's parallelize that uses threading instead of multiprocessing
+        when running in Celery daemon workers.
+        """
+        # Extract function and iterable from args (scvelo's parallelize signature may vary)
+        func = args[0] if args else kwargs.get('func')
+        iterable = args[1] if len(args) > 1 else kwargs.get('iterable')
+        n_jobs = kwargs.get('n_jobs', None)
+        
+        # Remove func and iterable from kwargs if they were passed as kwargs
+        call_kwargs = {k: v for k, v in kwargs.items() if k not in ('func', 'iterable', 'n_jobs', 'n_split')}
+        
+        # If n_jobs is 1 or None, run sequentially to avoid multiprocessing issues
+        if n_jobs == 1 or n_jobs is None:
+            # Run sequentially without multiprocessing
+            results = []
+            for item in iterable:
+                results.append(func(item, **call_kwargs))
+            return results
+        else:
+            # For n_jobs > 1, we still can't use multiprocessing in daemon processes
+            # So we'll use threading instead (slower but works)
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=n_jobs) as executor:
+                futures = [executor.submit(func, item, **call_kwargs) for item in iterable]
+                results = [f.result() for f in futures]
+            return results
+    
+    # Monkey-patch scvelo's parallelize function
+    _parallelize.parallelize = _patched_parallelize
+    print("Successfully patched scvelo's parallelize function to use threading.")
+except (ImportError, AttributeError) as e:
+    # If we can't patch scvelo's parallelize, that's okay - the Manager patch should handle it
+    print(f"Note: Could not patch scvelo's parallelize function: {e}. Using Manager patch instead.")
 
 # Configure settings for scvelo plotting if needed
 # scv.settings.figdir = str(Path(RESULT_DIR_STR) / "temp_figures") # Use Scanpy's temp dir?
@@ -183,7 +265,8 @@ def run_rna_velocity(self, params: dict):
         self.update_state(state='PROGRESS', meta={'status': f'Calculating Velocity (mode: {mode})...', 'step': 4, 'total_steps': 7})
         if mode == 'dynamical':
             # Requires moments calculated
-            scv.tl.recover_dynamics(adata_for_velocity, fit_basal_transcription=params.get('fit_basal_transcription', True), n_jobs=4) # Use more cores if available
+            # Note: n_jobs=1 to avoid multiprocessing issues in Celery daemon processes
+            scv.tl.recover_dynamics(adata_for_velocity, fit_basal_transcription=params.get('fit_basal_transcription', True), n_jobs=1)
         # Stochastic and Deterministic modes calculate velocity directly
         # Need to ensure velocity genes are selected appropriately beforehand if not using dynamical
         scv.tl.velocity(adata_for_velocity, mode=mode)
@@ -192,7 +275,8 @@ def run_rna_velocity(self, params: dict):
 
         # 4. Calculate Velocity Graph
         self.update_state(state='PROGRESS', meta={'status': 'Calculating Velocity Graph...', 'step': 5, 'total_steps': 7})
-        scv.tl.velocity_graph(adata_for_velocity, n_neighbors=params.get('vgraph_n_neighbors'), approx=params.get('vgraph_approx'), n_jobs=4)
+        # Note: n_jobs=1 to avoid multiprocessing issues in Celery daemon processes
+        scv.tl.velocity_graph(adata_for_velocity, n_neighbors=params.get('vgraph_n_neighbors'), approx=params.get('vgraph_approx'), n_jobs=1)
         results_summary['velocity_graph_calculated'] = True
 
 
